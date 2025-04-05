@@ -8,8 +8,8 @@ prometheus-node-exporter is a Prometheus project used to collect Prometheus metr
 | ------------ | ----------------------------------------------------------- |
 | latest       | ghcr.io/opopops/wolfi/prometheus-node-exporter:latest       |
 | latest-shell | ghcr.io/opopops/wolfi/prometheus-node-exporter:latest-shell |
-| 1.9          | ghcr.io/opopops/wolfi/prometheus-node-exporter:1.9          |
-| 1.9-shell    | ghcr.io/opopops/wolfi/prometheus-node-exporter:1.9-shell    |
+| 1.8          | ghcr.io/opopops/wolfi/prometheus-node-exporter:1.8          |
+| 1.8-shell    | ghcr.io/opopops/wolfi/prometheus-node-exporter:1.8-shell    |
 
 ## ✅ Verify the Provenance
 

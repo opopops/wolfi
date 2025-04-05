@@ -22,13 +22,13 @@ jobs:
   publish:
     strategy:
       matrix:
-        version: [latest, "1.9"]
+        version: [latest, "1.8"]
         variant: [prod, shell]
         include:
           - version: latest
             packages: ''
-          - version: "1.9"
-            packages: 'prometheus-node-exporter~1.9'
+          - version: "1.8"
+            packages: 'prometheus-node-exporter~1.8'
     name: ${{ matrix.version }}${{ matrix.variant == 'shell' && '-shell' || '' }}
     uses: './.github/workflows/release.yaml'
     with:
