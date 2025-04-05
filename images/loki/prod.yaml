@@ -1,0 +1,20 @@
+include: images/apko.yaml
+
+contents:
+  packages:
+    - ca-certificates-bundle
+    - dockerize
+    - glibc-locale-posix
+    - loki
+    - logcli
+    - wolfi-baselayout
+
+entrypoint:
+  command: /usr/bin/loki
+
+cmd: -config.file=/etc/loki/local-config.yaml
+
+annotations:
+  org.opencontainers.image.title: 'loki'
+  org.opencontainers.image.description: 'Loki image based on Wolfi OS'
+  org.opencontainers.image.source": 'https://github.com/opopops/wolfi/tree/main/images/loki'

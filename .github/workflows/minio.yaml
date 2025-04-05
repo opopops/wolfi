@@ -1,0 +1,39 @@
+name: minio
+
+on:
+  schedule:
+    - cron: "00 01 * * 1"
+  push:
+    branches:
+      - 'main'
+    paths:
+      - 'images/minio/*.yaml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+  attestations: write
+  id-token: write
+  security-events: write
+  actions: read
+
+jobs:
+  publish:
+    strategy:
+      matrix:
+        # https://images.chainguard.dev/directory/image/minio/versions
+        version: [latest, "0.20250312"]
+        variant: [prod, shell]
+        include:
+          - version: latest
+            packages: ''
+          - version: "0.20250312"
+            packages: 'minio~0.20250312,mc~0.20250312'
+    name: ${{ matrix.version }}${{ matrix.variant == 'shell' && '-shell' || '' }}
+    uses: './.github/workflows/release.yaml'
+    with:
+      tag: ${{ matrix.version }}${{ matrix.variant == 'shell' && '-shell' || '' }}
+      target: ${{ matrix.variant }}
+      packages: ${{ matrix.packages }}
+    secrets: inherit

@@ -1,0 +1,12 @@
+include: images/bash/prod.yaml
+
+contents:
+  packages:
+    - apk-tools
+    - git
+    - vim
+    - wget
+    - wolfi-keys
+
+accounts:
+  run-as: root

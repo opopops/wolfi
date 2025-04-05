@@ -1,0 +1,15 @@
+include: images/python/shell.yaml
+
+contents:
+  packages:
+    - apk-tools
+    - build-base
+    - git
+    # - python3-dev
+    # - py3-pip
+    - ruff
+    - uv
+    - wolfi-keys
+
+accounts:
+  run-as: root
