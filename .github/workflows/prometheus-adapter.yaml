@@ -2,7 +2,7 @@ name: prometheus-adapter
 
 on:
   schedule:
-    - cron: "00 01 * * 1-5"
+    - cron: "00 01 * * 1"
   push:
     branches:
       - 'main'
