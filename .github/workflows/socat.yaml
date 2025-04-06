@@ -1,0 +1,36 @@
+name: socat
+
+on:
+  schedule:
+    - cron: "00 01 * * 1"
+  push:
+    branches:
+      - 'main'
+    paths:
+      - 'images/socat/*.yaml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+  attestations: write
+  id-token: write
+  security-events: write
+  actions: read
+
+jobs:
+  publish:
+    strategy:
+      matrix:
+        version: [latest]
+        variant: [prod, shell]
+        include:
+          - version: latest
+            packages: ''
+    name: ${{ matrix.version }}${{ matrix.variant == 'shell' && '-shell' || '' }}
+    uses: './.github/workflows/release.yaml'
+    with:
+      tag: ${{ matrix.version }}${{ matrix.variant == 'shell' && '-shell' || '' }}
+      target: ${{ matrix.variant }}
+      packages: ${{ matrix.packages }}
+    secrets: inherit

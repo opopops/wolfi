@@ -32,4 +32,5 @@
 | [prometheus-adapter](./images/prometheus-adapter/)             | `docker pull ghcr.io/opopops/wolfi/prometheus-adapter`       |
 | [python](./images/python/)                                     | `docker pull ghcr.io/opopops/wolfi/python`                   |
 | [shell](./images/shell/)                                       | `docker pull ghcr.io/opopops/wolfi/shell`                    |
+| [socat](./images/socat/)                                       | `docker pull ghcr.io/opopops/wolfi/socat`                    |
 | [traefik](./images/traefik/)                                   | `docker pull ghcr.io/opopops/wolfi/traefik`                  |
