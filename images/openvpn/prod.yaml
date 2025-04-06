@@ -1,0 +1,25 @@
+include: images/apko.yaml
+
+contents:
+  packages:
+    - ca-certificates-bundle
+    - openvpn
+    - wolfi-baselayout
+    - wolfi-keys
+
+accounts:
+  run-as: 0
+
+work-dir: /
+
+entrypoint:
+  type: service-bundle
+  services:
+    openvpn: openvpn --config /etc/openvpn/client.conf
+
+stop-signal: SIGQUIT
+
+annotations:
+  org.opencontainers.image.title: 'openvpn'
+  org.opencontainers.image.description: 'openvpn image based on Wolfi OS'
+  org.opencontainers.image.source": 'https://github.com/opopops/wolfi/tree/main/images/openvpn'

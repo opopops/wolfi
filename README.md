@@ -28,6 +28,7 @@
 | [minio-bitnami](./images/minio-bitnami/)                       | `docker pull ghcr.io/opopops/wolfi/minio-bitnami`            |
 | [minio-bitnami-client](./images/minio-bitnami-client/)         | `docker pull ghcr.io/opopops/wolfi/minio-bitnami-client`     |
 | [nginx](./images/nginx/)                                       | `docker pull ghcr.io/opopops/wolfi/nginx`                    |
+| [openvpn](./images/openvpn/)                                   | `docker pull ghcr.io/opopops/wolfi/openvpn`                  |
 | [prometheus](./images/prometheus/)                             | `docker pull ghcr.io/opopops/wolfi/prometheus`               |
 | [prometheus-adapter](./images/prometheus-adapter/)             | `docker pull ghcr.io/opopops/wolfi/prometheus-adapter`       |
 | [python](./images/python/)                                     | `docker pull ghcr.io/opopops/wolfi/python`                   |
