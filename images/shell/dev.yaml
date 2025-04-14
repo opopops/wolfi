@@ -6,7 +6,6 @@ contents:
     - build-base
     - git
     - vim
-    - wget
     - wolfi-keys
 
 accounts:

@@ -5,7 +5,6 @@ contents:
     - apk-tools
     - git
     - vim
-    - wget
     - wolfi-keys
 
 accounts:

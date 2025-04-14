@@ -24,6 +24,7 @@ contents:
     - opentofu
     - py3-ansible-core
     - terragrunt
+    - wget
     - wolfi-baselayout
     - yq
 
