@@ -8,8 +8,8 @@ Minimal image with Minio.
 | ---------------- | -------------------------------------------- | ------- |
 | latest           | ghcr.io/opopops/wolfi/minio:latest           | ✅       |
 | latest-shell     | ghcr.io/opopops/wolfi/minio:latest-shell     | ✅       |
-| 0.20250312       | ghcr.io/opopops/wolfi/minio:0.20250312       | ✅       |
-| 0.20250312-shell | ghcr.io/opopops/wolfi/minio:0.20250312-shell | ✅       |
+| 0.20250408       | ghcr.io/opopops/wolfi/minio:0.20250408       | ✅       |
+| 0.20250408-shell | ghcr.io/opopops/wolfi/minio:0.20250408-shell | ✅       |
 
 ## ✅ Verify the Provenance
 
