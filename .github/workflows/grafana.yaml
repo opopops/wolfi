@@ -25,15 +25,11 @@ jobs:
       matrix:
         version: [latest, "11.6"]
         variant: [prod, shell]
-        include:
-          - version: latest
-            packages: ''
-          - version: "11.6"
-            packages: 'grafana~11.6'
     name: ${{ matrix.version }}${{ matrix.variant == 'shell' && '-shell' || '' }}
     uses: './.github/workflows/release.yaml'
     with:
       tag: ${{ matrix.version }}${{ matrix.variant == 'shell' && '-shell' || '' }}
       target: ${{ matrix.variant }}
-      packages: ${{ matrix.packages }}
+      packages: >-
+        ${{ matrix.version != 'latest' && format('grafana~{0}', matrix.version) || '' }}
     secrets: inherit

@@ -35,5 +35,6 @@ jobs:
     with:
       tag: ${{ matrix.version }}${{ matrix.variant == 'shell' && '-shell' || '' }}
       target: ${{ matrix.variant }}
-      packages: ${{ matrix.packages }}
+      packages: >-
+        ${{ matrix.version != 'latest' && format('prometheus~{0}', matrix.version) || '' }}
     secrets: inherit
