@@ -7,7 +7,7 @@ APKO_VERSION = "latest"
 CRANE_VERSION = "latest"
 COSIGN_VERSION = "latest"
 GRYPE_VERSION = "latest"
-SCAN_SEVERITY = "high"
+SCAN_SEVERITY = "critical"
 
 
 @object_type
@@ -213,15 +213,13 @@ class Wolfi:
         # Inject GitHub Actions secret variables
         # Refer https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/store-information-in-variables#default-environment-variables
         if self.github_actions:
-            self.builder_ = (
-                self.builder_.with_env_variable("CI", "true")
-                .with_env_variable("GITHUB_ACTIONS", "true")
-            )
+            self.builder_ = self.builder_.with_env_variable(
+                "CI", "true"
+            ).with_env_variable("GITHUB_ACTIONS", "true")
             if self.github_actor:
-                self.builder_ = (
-                    self.builder_.with_env_variable("CI", "true")
-                    .with_env_variable("GITHUB_ACTOR", self.github_actor)
-                )
+                self.builder_ = self.builder_.with_env_variable(
+                    "CI", "true"
+                ).with_env_variable("GITHUB_ACTOR", self.github_actor)
             if self.github_token:
                 self.builder_ = self.builder_.with_secret_variable(
                     "GITHUB_TOKEN", self.github_token
@@ -273,8 +271,11 @@ class Wolfi:
         ] = None,
         scan: Annotated[bool, Doc("Scan the image for vulnerabilities")] = True,
         sign: Annotated[bool, Doc("Sign the image with cosign")] = False,
-        private_key: Annotated[
+        cosign_key: Annotated[
             dagger.Secret | None, Doc("Private key to use for image signing")
+        ] = None,
+        cosign_password: Annotated[
+            dagger.Secret | None, Doc("Password used to decrypt the Cosign Private key")
         ] = None,
         identity_token: Annotated[
             dagger.Secret | None, Doc("identity token to use for image signing")
@@ -293,10 +294,13 @@ class Wolfi:
         image_title: str = await self.get_image_title(config)
 
         # Scan the image for vulnerabilities
+        scan_report: dagger.File = None
         if scan:
-            self.scan_tarball(
+            scan_report = self.scan_tarball(
                 tarball=tarball,
+                format_="json",
             )
+            await scan_report.contents()
 
         # Publish the image
         if platforms is None:
@@ -311,16 +315,11 @@ class Wolfi:
             tags = [
                 f"ttl.sh/opopops/wolfi/{image_title}:{tarball_digest.split(':')[1][:8]}"
             ]
-        for tag in tags:
-            await self.container_.publish(
-                address=tag, platform_variants=platform_variants
-            )
-
+        full_ref: str = await self.container_.publish(
+            address=tags[0], platform_variants=platform_variants
+        )
         digest = (
             await builder.with_exec(["crane", "digest", tags[0]]).stdout()
-        ).strip()
-        full_ref = (
-            await builder.with_exec(["crane", "digest", tags[0], "--full-ref"]).stdout()
         ).strip()
 
         # Sign and attest
@@ -329,11 +328,13 @@ class Wolfi:
                 path="$APKO_SBOM_DIR", source=self.sbom, owner="nonroot", expand=True
             )
             cosign_sign_cmd: list[str] = ["cosign", "sign", "--recursive"]
-            cosign_attest_cmd: list[str] = ["cosign", "attest", "--type", "spdxjson"]
-            if private_key:
-                builder = builder.with_secret_variable(
-                    "COSIGN_PRIVATE_KEY", private_key
-                )
+            cosign_attest_cmd: list[str] = ["cosign", "attest"]
+            if cosign_key:
+                builder = builder.with_secret_variable("COSIGN_PRIVATE_KEY", cosign_key)
+                if cosign_password:
+                    builder = builder.with_secret_variable(
+                        "COSIGN_PASSWORD", cosign_password
+                    )
                 cosign_sign_cmd.extend(["--key", "env://COSIGN_PRIVATE_KEY"])
                 cosign_attest_cmd.extend(["--key", "env://COSIGN_PRIVATE_KEY"])
             if identity_token:
@@ -348,7 +349,9 @@ class Wolfi:
 
             # Sign the image with cosign
             await (
-                builder.with_exec(["cosign", "clean", full_ref, "--force"])
+                builder.with_exec(
+                    ["cosign", "clean", full_ref, "--type", "all", "--force"]
+                )
                 .with_exec(cosign_sign_cmd + [full_ref], expand=True)
                 .stdout()
             )
@@ -359,6 +362,8 @@ class Wolfi:
                 await builder.with_exec(
                     cosign_attest_cmd
                     + [
+                        "--type",
+                        "spdxjson",
                         "--predicate",
                         "${APKO_SBOM_DIR}/sbom-index.spdx.json",
                         full_ref,
@@ -379,9 +384,42 @@ class Wolfi:
                 ).stdout()
                 await builder.with_exec(
                     cosign_attest_cmd
-                    + ["--predicate", predicate, platform_digest.strip()],
+                    + [
+                        "--type",
+                        "spdxjson",
+                        "--predicate",
+                        predicate,
+                        platform_digest.strip(),
+                    ],
                     expand=True,
                 ).stdout()
+
+            if scan_report:
+                # Attest vulnerability report
+                await (
+                    builder.with_mounted_file(
+                        "/tmp/grype-report.json", scan_report, owner="nonroot"
+                    )
+                    .with_exec(
+                        cosign_attest_cmd
+                        + [
+                            "--type",
+                            "vuln",
+                            "--predicate",
+                            "/tmp/grype-report.json",
+                            full_ref,
+                        ],
+                    )
+                    .stdout()
+                )
+
+        # Publish other tags
+        for tag in tags[1:]:
+            await (
+                builder.with_exec(["cosign", "clean", tag, "--type", "all", "--force"])
+                .with_exec(["cosign", "copy", full_ref, tag, "--force"])
+                .stdout()
+            )
 
         if self.github_actions:
             return digest
