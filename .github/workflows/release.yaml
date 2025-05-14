@@ -72,8 +72,7 @@ jobs:
   publish:
       runs-on: ubuntu-latest
       outputs:
-      #   digest: ${{ steps.ako.outputs.digest }}
-          digest: ${{ steps.publish.outputs.output }}
+        digest: ${{ steps.output.outputs.digest }}
       steps:
         - if: inputs.dagger != 'true'
           uses: imjasonh/setup-crane@v0.4
@@ -104,8 +103,7 @@ jobs:
           with:
             version: "0.18.7"
             cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
-            verb: call
-            args: |
+            call: |
               --github-actions=true \
               --github-actor=${{ github.actor }} \
               --github-token=env://GITHUB_TOKEN \
@@ -124,7 +122,7 @@ jobs:
 
         - if: inputs.dagger != 'true'
           name: Create SBOM directory
-          id: output
+          id: sbom
           shell: bash
           run: |
             mkdir -p ${{ github.workspace }}/sbom
@@ -227,3 +225,13 @@ jobs:
           with:
             sarif_file: ${{ steps.scan.outputs.sarif }}
             category: ${{ github.workflow }}
+
+        - name: Set output
+          id: output
+          shell: bash
+          run: |
+            if [ "${{ inputs.dagger }}" = "true" ]; then
+              echo "digest=${{ steps.publish.outputs.output }}" >> $GITHUB_OUTPUT
+            else
+              echo "digest=${{ steps.apko.outputs.digest }}" >> $GITHUB_OUTPUT
+            fi
