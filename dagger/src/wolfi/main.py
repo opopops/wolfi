@@ -7,7 +7,6 @@ APKO_VERSION = "latest"
 CRANE_VERSION = "latest"
 COSIGN_VERSION = "latest"
 GRYPE_VERSION = "latest"
-SCAN_SEVERITY = "critical"
 
 
 @object_type
@@ -65,7 +64,7 @@ class Wolfi:
             Doc(
                 "Fails if a vulnerability is found with a severity >= the given severity"
             ),
-        ] = SCAN_SEVERITY,
+        ] = "",
         format_: Annotated[str, Doc("Output format"), Name("format")] = "table",
     ) -> dagger.File:
         """Scan a file for vulnerabilities"""
@@ -266,10 +265,17 @@ class Wolfi:
         self,
         config: Annotated[dagger.File, Doc("APKO config file")],
         tags: Annotated[list[str], Doc("Image tags"), Name("tag")] = (),
+        version: Annotated[str, Doc("Image version. Used when no tags provided")] = "",
         platforms: Annotated[
             list[dagger.Platform] | None, Doc("Platforms"), Name("arch")
         ] = None,
         scan: Annotated[bool, Doc("Scan the image for vulnerabilities")] = True,
+        scan_fail_on: Annotated[
+            str,
+            Doc(
+                "Fails if a vulnerability is found with a severity >= the given severity"
+            ),
+        ] = "",
         sign: Annotated[bool, Doc("Sign the image with cosign")] = False,
         cosign_key: Annotated[
             dagger.Secret | None, Doc("Private key to use for image signing")
@@ -298,6 +304,7 @@ class Wolfi:
         if scan:
             scan_report = self.scan_tarball(
                 tarball=tarball,
+                fail_on=scan_fail_on,
                 format_="json",
             )
             await scan_report.contents()
@@ -312,9 +319,13 @@ class Wolfi:
         for platform in platforms:
             platform_variants.append(dag.container(platform=platform).import_(tarball))
         if not tags:
-            tags = [
-                f"ttl.sh/opopops/wolfi/{image_title}:{tarball_digest.split(':')[1][:8]}"
-            ]
+            # When tags note provided, compute image address.
+            registry: str = "ttl.sh"
+            if self.github_actions:
+                registry = "ghcr.io"
+            if not version:
+                version = tarball_digest.split(":")[1][:8]
+            tags = [f"{registry}/opopops/wolfi/{image_title}:{version}"]
         full_ref: str = await self.container_.publish(
             address=tags[0], platform_variants=platform_variants
         )

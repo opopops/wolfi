@@ -101,7 +101,7 @@ jobs:
             GITHUB_TOKEN: ${{ github.token }}
             REGISTRY_PASSWORD: ${{ inputs.registry-password || github.token }}
           with:
-            version: "0.18.7"
+            version: "0.18.8"
             cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
             call: |
               --github-actions=true \
