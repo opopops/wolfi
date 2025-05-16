@@ -99,7 +99,6 @@ jobs:
             ACTIONS_ID_TOKEN_REQUEST_TOKEN: ${{ env.ACTIONS_ID_TOKEN_REQUEST_TOKEN}}
             ACTIONS_ID_TOKEN_REQUEST_URL: ${{ env.ACTIONS_ID_TOKEN_REQUEST_URL }}
             GITHUB_TOKEN: ${{ github.token }}
-            REGISTRY_PASSWORD: ${{ inputs.registry-password || github.token }}
           with:
             version: "0.18.8"
             cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
@@ -109,10 +108,6 @@ jobs:
               --github-token=env://GITHUB_TOKEN \
               --github-oidc-provider-token=env://ACTIONS_ID_TOKEN_REQUEST_TOKEN \
               --github-oidc-provider-url=env://ACTIONS_ID_TOKEN_REQUEST_URL \
-              with-registry-auth \
-                --address=${{ inputs.registry }} \
-                --username=${{ inputs.registry-username }} \
-                --secret=env://REGISTRY_PASSWORD \
               publish \
                 --config=${{ inputs.config-dir }}/${{ inputs.target }}.yaml \
                 --tag=${{ inputs.registry }}/${{ inputs.image }}:${{ inputs.tag }} \

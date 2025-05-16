@@ -238,9 +238,9 @@ class Wolfi:
         self,
         username: Annotated[str, Doc("Registry username")],
         secret: Annotated[dagger.Secret, Doc("Registry password")],
-        address: Annotated[str, Doc("Registry host")] = "docker.io",
+        address: Annotated[str, Doc("Registry host")] = "ghcr.io",
     ) -> Self:
-        """Authenticates with registry"""
+        """Authenticates with registry (for chaining)"""
         self.container_ = self.container_.with_registry_auth(
             address=address, username=username, secret=secret
         )
@@ -292,7 +292,6 @@ class Wolfi:
     ) -> str:
         """Publish the image"""
         # Build the image
-        builder: dagger.Container = self.builder()
         tarball: dagger.File = await self.build(config, platforms=platforms)
         tarball_digest: str = await tarball.digest()
 
@@ -309,6 +308,15 @@ class Wolfi:
             )
             await scan_report.contents()
 
+        # Authenticates to the registry when running in GitHub Actions
+        if self.github_actor and self.github_token:
+            self.with_registry_auth(
+                username=self.github_actor,
+                secret=self.github_token,
+            )
+
+        builder: dagger.Container = self.builder()
+
         # Publish the image
         if platforms is None:
             platforms = await self.get_platforms(config)
@@ -316,19 +324,22 @@ class Wolfi:
         digest: str = ""
         full_ref: str = ""
 
+        # Load platform variants form iamge OCI tarball
         for platform in platforms:
             platform_variants.append(dag.container(platform=platform).import_(tarball))
         if not tags:
-            # When tags note provided, compute image address.
-            registry: str = "ttl.sh"
+            # When tags not provided, compute image address.
+            repository: str = f"ttl.sh/opopops/wolfi/{image_title}"
             if self.github_actions:
-                registry = "ghcr.io"
+                repository = f"ghcr.io/{self.github_actor}/wolfi/{image_title}"
             if not version:
                 version = tarball_digest.split(":")[1][:8]
-            tags = [f"{registry}/opopops/wolfi/{image_title}:{version}"]
+            tags = [f"{repository}:{version}"]
         full_ref: str = await self.container_.publish(
             address=tags[0], platform_variants=platform_variants
         )
+
+        # Publish the image to the registry
         digest = (
             await builder.with_exec(["crane", "digest", tags[0]]).stdout()
         ).strip()
