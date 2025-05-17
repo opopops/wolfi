@@ -3,6 +3,8 @@ import yaml
 import dagger
 from dagger import DefaultPath, Doc, Name, dag, function, object_type
 
+from .build import Build
+
 APKO_VERSION = "latest"
 CRANE_VERSION = "latest"
 COSIGN_VERSION = "latest"
@@ -15,9 +17,8 @@ class Wolfi:
 
     source: dagger.Directory
     image: str
-    container_: dagger.Container
     builder_: dagger.Container | None
-    sbom: dagger.Directory | None
+    container_: dagger.Container | None
 
     github_actions: bool | None
     github_actor: str | None
@@ -51,9 +52,8 @@ class Wolfi:
             github_token=github_token,
             github_oidc_provider_token=github_oidc_provider_token,
             github_oidc_provider_url=github_oidc_provider_url,
-            container_=dag.container(),
             builder_=None,
-            sbom=None,
+            container_=dag.container(),
         )
 
     def scan_tarball(
@@ -74,7 +74,7 @@ class Wolfi:
 
         cmd: list[str] = [
             "grype",
-            "${APKO_IMAGE_TARBALL}",
+            "oci-archive:${APKO_IMAGE_TARBALL}",
             "--output",
             format_,
             "--file",
@@ -267,7 +267,7 @@ class Wolfi:
         tags: Annotated[list[str], Doc("Image tags"), Name("tag")] = (),
         version: Annotated[str, Doc("Image version. Used when no tags provided")] = "",
         platforms: Annotated[
-            list[dagger.Platform] | None, Doc("Platforms"), Name("arch")
+            list[dagger.Platform] | None, Doc("Platforms"), Name("platform")
         ] = None,
         scan: Annotated[bool, Doc("Scan the image for vulnerabilities")] = True,
         scan_fail_on: Annotated[
@@ -292,19 +292,19 @@ class Wolfi:
     ) -> str:
         """Publish the image"""
         # Build the image
-        tarball: dagger.File = await self.build(config, platforms=platforms)
-        tarball_digest: str = await tarball.digest()
+        if platforms is None:
+            platforms = await self.get_platforms(config)
 
-        # Retrieve image title from config
-        image_title: str = await self.get_image_title(config)
+        build: Build = await self.build(config, platforms=platforms)
+        build_digest: str = await build.digest()
 
         # Scan the image for vulnerabilities
         scan_report: dagger.File = None
         if scan:
             scan_report = self.scan_tarball(
-                tarball=tarball,
+                tarball=build.container().as_tarball(),
                 fail_on=scan_fail_on,
-                format_="json",
+                format_="table",
             )
             await scan_report.contents()
 
@@ -317,29 +317,25 @@ class Wolfi:
 
         builder: dagger.Container = self.builder()
 
-        # Publish the image
-        if platforms is None:
-            platforms = await self.get_platforms(config)
-        platform_variants: list[dagger.Container] = []
         digest: str = ""
         full_ref: str = ""
 
-        # Load platform variants form iamge OCI tarball
-        for platform in platforms:
-            platform_variants.append(dag.container(platform=platform).import_(tarball))
+        # When tags not provided, compute image address.
         if not tags:
-            # When tags not provided, compute image address.
+            # Retrieve image title from config
+            image_title: str = await self.get_image_title(config)
             repository: str = f"ttl.sh/opopops/wolfi/{image_title}"
             if self.github_actions:
                 repository = f"ghcr.io/{self.github_actor}/wolfi/{image_title}"
             if not version:
-                version = tarball_digest.split(":")[1][:8]
+                version = build_digest.split(":")[1][:8]
             tags = [f"{repository}:{version}"]
+
+        # Publish the image
         full_ref: str = await self.container_.publish(
-            address=tags[0], platform_variants=platform_variants
+            address=tags[0], platform_variants=build.platform_variants()
         )
 
-        # Publish the image to the registry
         digest = (
             await builder.with_exec(["crane", "digest", tags[0]]).stdout()
         ).strip()
@@ -347,7 +343,10 @@ class Wolfi:
         # Sign and attest
         if sign:
             builder = builder.with_mounted_directory(
-                path="$APKO_SBOM_DIR", source=self.sbom, owner="nonroot", expand=True
+                path="$APKO_SBOM_DIR",
+                source=build.as_sbom(),
+                owner="nonroot",
+                expand=True,
             )
             cosign_sign_cmd: list[str] = ["cosign", "sign", "--recursive"]
             cosign_attest_cmd: list[str] = ["cosign", "attest"]
@@ -381,40 +380,47 @@ class Wolfi:
             # Attest SBOMs
             if len(platforms) > 1:
                 # Attest index SBOM
-                await builder.with_exec(
-                    cosign_attest_cmd
-                    + [
-                        "--type",
-                        "spdxjson",
-                        "--predicate",
-                        "${APKO_SBOM_DIR}/sbom-index.spdx.json",
-                        full_ref,
-                    ],
-                    expand=True,
-                ).stdout()
+                await (
+                    builder.with_mounted_file(
+                        "/tmp/sbom.spdx.json", build.platform_sbom()
+                    )
+                    .with_exec(
+                        cosign_attest_cmd
+                        + [
+                            "--type",
+                            "spdxjson",
+                            "--predicate",
+                            "/tmp/sbom.spdx.json",
+                            full_ref,
+                        ],
+                        expand=True,
+                    )
+                    .stdout()
+                )
 
             # Attest platforms SBOMs
-            predicate: str = ""
             for platform in platforms:
-                if platform == dagger.Platform("linux/amd64"):
-                    predicate = "${APKO_SBOM_DIR}/sbom-x86_64.spdx.json"
-                elif platform == dagger.Platform("linux/arm64"):
-                    predicate = "${APKO_SBOM_DIR}/sbom-aarch64.spdx.json"
                 platform_digest: str = await builder.with_exec(
                     ["crane", "digest", full_ref, "--platform", platform, "--full-ref"],
                     expand=True,
                 ).stdout()
-                await builder.with_exec(
-                    cosign_attest_cmd
-                    + [
-                        "--type",
-                        "spdxjson",
-                        "--predicate",
-                        predicate,
-                        platform_digest.strip(),
-                    ],
-                    expand=True,
-                ).stdout()
+                await (
+                    builder.with_mounted_file(
+                        "/tmp/sbom.spdx.json", build.platform_sbom(platform)
+                    )
+                    .with_exec(
+                        cosign_attest_cmd
+                        + [
+                            "--type",
+                            "spdxjson",
+                            "--predicate",
+                            "/tmp/sbom.spdx.json",
+                            platform_digest.strip(),
+                        ],
+                        expand=True,
+                    )
+                    .stdout()
+                )
 
             if scan_report:
                 # Attest vulnerability report
@@ -454,8 +460,8 @@ class Wolfi:
     ) -> dagger.Container:
         """Returns the image container and open an interactive terminal"""
         platform: dagger.Platform = await dag.default_platform()
-        tarball: dagger.File = await self.build(config, platforms=[platform])
-        return dag.container().import_(source=tarball).terminal()
+        build: Build = await self.build(config, platforms=[platform])
+        return build.container().terminal()
 
     @function
     async def scan(
@@ -468,24 +474,25 @@ class Wolfi:
             ),
         ] = "",
         format_: Annotated[str, Doc("Output format"), Name("format")] = "table",
-    ) -> str:
+    ) -> dagger.File:
         """Scan for vulnerabilities"""
-        tarball: dagger.File = await self.build(config)
-        return await self.scan_tarball(
-            tarball=tarball,
+        platform: dagger.Platform = await dag.default_platform()
+        build: Build = await self.build(config, platforms=[platform])
+        return self.scan_tarball(
+            tarball=build.as_tarball(),
             fail_on=fail_on,
             format_=format_,
-        ).contents()
+        )
 
     @function
     async def build(
         self,
         config: Annotated[dagger.File, Doc("APKO config file")],
         platforms: Annotated[
-            list[dagger.Platform] | None, Doc("Platforms"), Name("arch")
+            list[dagger.Platform] | None, Doc("Platforms"), Name("platform")
         ] = None,
-    ) -> dagger.File:
-        """Builds the image"""
+    ) -> Build:
+        """Builds the image and returns the tarball"""
         builder: dagger.Container = self.builder().with_mounted_file(
             "$APKO_CONFIG_FILE", source=config, owner="nonroot", expand=True
         )
@@ -504,15 +511,20 @@ class Wolfi:
             "--sbom-path",
             "$APKO_SBOM_DIR",
         ]
+
         if platforms:
             for platform in platforms:
                 cmd.extend(["--arch", platform.split("/")[1]])
+        else:
+            # Retrieves platforms from config
+            platforms = await self.get_platforms(config)
+
         builder = builder.with_exec(
             cmd,
             expand=True,
         )
 
-        # Save SBOMs
-        self.sbom = builder.directory("$APKO_SBOM_DIR", expand=True)
+        tarball: dagger.File = builder.file("$APKO_IMAGE_TARBALL", expand=True)
+        sbom: dagger.Directory = builder.directory("$APKO_SBOM_DIR", expand=True)
 
-        return builder.file("$APKO_IMAGE_TARBALL", expand=True)
+        return Build(tarball=tarball, sbom=sbom, platforms=platforms)
