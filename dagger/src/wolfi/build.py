@@ -5,7 +5,7 @@ from dagger import Doc, dag, function, object_type
 
 @object_type
 class Build:
-    """Wolfi Build module"""
+    """Wolfi Build"""
 
     tarball: Annotated[dagger.File, Doc("apko tarball")]
     sbom: Annotated[dagger.Directory, Doc("SBOM directory")]
