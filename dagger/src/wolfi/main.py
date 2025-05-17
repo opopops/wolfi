@@ -1,38 +1,30 @@
 from typing import Annotated, Self
-import yaml
+from datetime import datetime
+
 import dagger
 from dagger import DefaultPath, Doc, Name, dag, function, object_type
 
+from .builder import Builder
 from .build import Build
-
-APKO_VERSION = "latest"
-CRANE_VERSION = "latest"
-COSIGN_VERSION = "latest"
-GRYPE_VERSION = "latest"
+from .config import Config
 
 
 @object_type
 class Wolfi:
-    """Wolfi module"""
+    """Wolfi Pipeline"""
 
     source: dagger.Directory
-    image: str
     builder_: dagger.Container | None
     container_: dagger.Container | None
 
     github_actions: bool | None
     github_actor: str | None
     github_token: dagger.Secret | None
-    github_oidc_provider_url: dagger.Secret | None
-    github_oidc_provider_token: dagger.Secret | None
 
     @classmethod
     async def create(
         cls,
         source: Annotated[dagger.Directory, DefaultPath("/"), Doc("Source directory")],
-        image: Annotated[str, Doc("wolfi-base image")] = (
-            "cgr.dev/chainguard/wolfi-base:latest"
-        ),
         github_actions: Annotated[bool, Doc("Enable GitHub Actions")] = False,
         github_actor: Annotated[str, Doc("GitHub Actor")] = "",
         github_token: Annotated[dagger.Secret | None, Doc("GitHub Token")] = None,
@@ -44,19 +36,44 @@ class Wolfi:
         ] = None,
     ):
         """Constructor"""
+        builder: dagger.Container = Builder().container()
+        builder = builder.with_mounted_directory(
+            "$SOURCE_DIR",
+            source=source.filter(include=["images/"]),
+            owner=await builder.user(),
+            expand=True,
+        ).with_workdir("$SOURCE_DIR", expand=True)
+
+        # Inject GitHub Actions secret variables
+        # Refer https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/store-information-in-variables#default-environment-variables
+        if github_actions:
+            builder = builder.with_env_variable("CI", "true").with_env_variable(
+                "GITHUB_ACTIONS", "true"
+            )
+            if github_actor:
+                builder = builder.with_env_variable("CI", "true").with_env_variable(
+                    "GITHUB_ACTOR", github_actor
+                )
+            if github_token:
+                builder = builder.with_secret_variable("GITHUB_TOKEN", github_token)
+            if github_oidc_provider_token:
+                builder = builder.with_secret_variable(
+                    "ACTIONS_ID_TOKEN_REQUEST_TOKEN", github_oidc_provider_token
+                )
+            if github_oidc_provider_url:
+                builder = builder.with_secret_variable(
+                    "ACTIONS_ID_TOKEN_REQUEST_URL", github_oidc_provider_url
+                )
         return cls(
             source=source,
-            image=image,
             github_actions=github_actions,
             github_actor=github_actor,
             github_token=github_token,
-            github_oidc_provider_token=github_oidc_provider_token,
-            github_oidc_provider_url=github_oidc_provider_url,
-            builder_=None,
+            builder_=builder,
             container_=dag.container(),
         )
 
-    def scan_tarball(
+    async def scan_tarball(
         self,
         tarball: Annotated[dagger.File, Doc("File to scan")],
         fail_on: Annotated[
@@ -68,8 +85,11 @@ class Wolfi:
         format_: Annotated[str, Doc("Output format"), Name("format")] = "table",
     ) -> dagger.File:
         """Scan a file for vulnerabilities"""
-        builder: dagger.Container = self.builder().with_mounted_file(
-            "${APKO_IMAGE_TARBALL}", source=tarball, owner="nonroot", expand=True
+        builder: dagger.Container = self.builder_.with_mounted_file(
+            "${APKO_IMAGE_TARBALL}",
+            source=tarball,
+            owner=await self.builder_.user(),
+            expand=True,
         )
 
         cmd: list[str] = [
@@ -89,12 +109,19 @@ class Wolfi:
         ).file("$GRYPE_REPORT_FILE", expand=True)
 
     @function
-    def get_config(self, config: dagger.File) -> dagger.File:
-        """Show the configuration derived from loading a YAML file"""
-        return (
-            self.builder()
-            .with_mounted_file(
-                "$APKO_CONFIG_FILE", source=config, owner="nonroot", expand=True
+    def builder(self) -> dagger.Container:
+        """Returns the builder container"""
+        return self.builder_
+
+    @function
+    async def config(self, config: dagger.File) -> Config:
+        """Returns the configuration derived from loading a YAML file"""
+        config: dagger.File = (
+            self.builder_.with_mounted_file(
+                "$APKO_CONFIG_FILE",
+                source=config,
+                owner=await self.builder_.user(),
+                expand=True,
             )
             .with_exec(
                 ["apko", "show-config", "$APKO_CONFIG_FILE", "--log-level", "ERROR"],
@@ -103,135 +130,7 @@ class Wolfi:
             )
             .file("/tmp/config.yaml")
         )
-
-    @function
-    async def get_image_title(self, config: dagger.File) -> str:
-        """Returns the image title from config"""
-        config_dict: dict = yaml.safe_load(await self.get_config(config).contents())
-        return config_dict["annotations"]["org.opencontainers.image.title"]
-
-    @function
-    async def get_platforms(self, config: dagger.File) -> list[dagger.Platform]:
-        """Get the platforms from the apko config file"""
-        platforms: list[dagger.Platform] = []
-        config_dict: dict = yaml.safe_load(await self.get_config(config).contents())
-        archs: list[str] = config_dict.get("archs", [])
-        for arch in archs:
-            if arch in ["amd64", "x86_64"]:
-                platforms.append(dagger.Platform("linux/amd64"))
-            elif arch in ["arm64", "aarch64"]:
-                platforms.append(dagger.Platform("linux/arm64"))
-            else:
-                continue
-        return platforms
-
-    @function
-    def builder(self) -> dagger.Container:
-        """Returns the builder container"""
-        if self.builder_:
-            return self.builder_
-
-        apko_pkg = "apko"
-        if APKO_VERSION != "latest":
-            apko_pkg = f"{apko_pkg}~{APKO_VERSION}"
-
-        cosign_pkg = "cosign"
-        if COSIGN_VERSION != "latest":
-            cosign_pkg = f"{cosign_pkg}~{COSIGN_VERSION}"
-
-        crane_pkg = "crane"
-        if CRANE_VERSION != "latest":
-            crane_pkg = f"{crane_pkg}~{CRANE_VERSION}"
-
-        grype_pkg = "grype"
-        if GRYPE_VERSION != "latest":
-            grype_pkg = f"{grype_pkg}~{GRYPE_VERSION}"
-
-        self.builder_ = (
-            dag.container()
-            .from_(address=self.image)
-            .with_env_variable("BUILD_DIR", "/build")
-            .with_env_variable("CACHE_DIR", "/cache")
-            .with_env_variable("SOURCE_DIR", "/source")
-            .with_env_variable("APKO_CACHE_DIR", "${CACHE_DIR}/apko", expand=True)
-            .with_env_variable(
-                "APKO_CONFIG_FILE", "${BUILD_DIR}/apko.yaml", expand=True
-            )
-            .with_env_variable(
-                "APKO_IMAGE_TARBALL", "${BUILD_DIR}/image.tar", expand=True
-            )
-            .with_env_variable("APKO_SBOM_DIR", "${BUILD_DIR}", expand=True)
-            .with_env_variable("COSIGN_YES", "true")
-            .with_env_variable("GRYPE_CACHE_DIR", "${CACHE_DIR}/grype", expand=True)
-            .with_env_variable(
-                "GRYPE_DB_CACHE_DIR", "${GRYPE_CACHE_DIR}/db", expand=True
-            )
-            .with_env_variable(
-                "GRYPE_REPORT_FILE", "${BUILD_DIR}/grype.report", expand=True
-            )
-            .with_user("root")
-            .with_exec(
-                [
-                    "apk",
-                    "add",
-                    "--no-cache",
-                    apko_pkg,
-                    crane_pkg,
-                    cosign_pkg,
-                    grype_pkg,
-                ]
-            )
-            .with_exec(
-                ["mkdir", "-m", "777", "-p", "$BUILD_DIR", "$CACHE_DIR", "$SOURCE_DIR"],
-                expand=True,
-            )
-            .with_mounted_cache(
-                "$APKO_CACHE_DIR",
-                dag.cache_volume("apko-cache"),
-                sharing=dagger.CacheSharingMode("SHARED"),
-                owner="nonroot",
-                expand=True,
-            )
-            .with_mounted_cache(
-                "$GRYPE_CACHE_DIR",
-                dag.cache_volume("grype-cache"),
-                sharing=dagger.CacheSharingMode("SHARED"),
-                owner="nonroot",
-                expand=True,
-            )
-            .with_mounted_directory(
-                "$SOURCE_DIR",
-                source=self.source.filter(include=["images/"]),
-                owner="nonroot",
-                expand=True,
-            )
-            .with_user("nonroot")
-            .with_workdir("$SOURCE_DIR", expand=True)
-        )
-
-        # Inject GitHub Actions secret variables
-        # Refer https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/store-information-in-variables#default-environment-variables
-        if self.github_actions:
-            self.builder_ = self.builder_.with_env_variable(
-                "CI", "true"
-            ).with_env_variable("GITHUB_ACTIONS", "true")
-            if self.github_actor:
-                self.builder_ = self.builder_.with_env_variable(
-                    "CI", "true"
-                ).with_env_variable("GITHUB_ACTOR", self.github_actor)
-            if self.github_token:
-                self.builder_ = self.builder_.with_secret_variable(
-                    "GITHUB_TOKEN", self.github_token
-                )
-            if self.github_oidc_provider_token:
-                self.builder_ = self.builder_.with_secret_variable(
-                    "ACTIONS_ID_TOKEN_REQUEST_TOKEN", self.github_oidc_provider_token
-                )
-            if self.github_oidc_provider_url:
-                self.builder_ = self.builder_.with_secret_variable(
-                    "ACTIONS_ID_TOKEN_REQUEST_URL", self.github_oidc_provider_url
-                )
-        return self.builder_
+        return Config(config=config)
 
     @function
     def with_registry_auth(
@@ -253,11 +152,37 @@ class Wolfi:
                 " --password ${REGISTRY_PASSWORD}"
             ),
         ]
-        self.builder_ = (
-            self.builder()
-            .with_secret_variable("REGISTRY_PASSWORD", secret)
-            .with_exec(cmd, use_entrypoint=False)
+        self.builder_ = self.builder_.with_secret_variable(
+            "REGISTRY_PASSWORD", secret
+        ).with_exec(cmd, use_entrypoint=False)
+        return self
+
+    @function
+    def with_env_variable(
+        self,
+        name: Annotated[str, Doc("Name of the environment variable")],
+        value: Annotated[str, Doc("Value of the environment variable")],
+        expand: Annotated[
+            bool | None,
+            Doc(
+                "Replace “${VAR}” or “$VAR” in the value according to the current environment variables defined in the container"
+            ),
+        ] = False,
+    ) -> Self:
+        """Set a new environment variable in the Apko container"""
+        self.builder_ = self.builder_.with_env_variable(
+            name=name, value=value, expand=expand
         )
+        return self
+
+    @function
+    def with_secret_variable(
+        self,
+        name: Annotated[str, Doc("Name of the secret variable")],
+        secret: Annotated[dagger.Secret, Doc("Identifier of the secret value")],
+    ) -> Self:
+        """Set a new environment variable, using a secret value"""
+        self.builder_ = self.builder_.with_secret_variable(name=name, secret=secret)
         return self
 
     @function
@@ -277,6 +202,9 @@ class Wolfi:
             ),
         ] = "",
         sign: Annotated[bool, Doc("Sign the image with cosign")] = False,
+        cosign_annotations: Annotated[
+            list[str] | None, Doc("Extra key=value pairs to sign")
+        ] = (),
         cosign_key: Annotated[
             dagger.Secret | None, Doc("Private key to use for image signing")
         ] = None,
@@ -289,11 +217,16 @@ class Wolfi:
         oidc_provider: Annotated[
             str, Doc("Specify the provider to get the OIDC token from")
         ] = "",
+        force: Annotated[
+            bool | None, Doc("Force image publishing (invalidate cache)")
+        ] = False,
     ) -> str:
         """Publish the image"""
-        # Build the image
+        # Retrieve the full configuration
+        config_: Config = await self.config(config=config)
+
         if platforms is None:
-            platforms = await self.get_platforms(config)
+            platforms = await config_.platforms()
 
         build: Build = await self.build(config, platforms=platforms)
         build_digest: str = await build.digest()
@@ -301,8 +234,8 @@ class Wolfi:
         # Scan the image for vulnerabilities
         scan_report: dagger.File = None
         if scan:
-            scan_report = self.scan_tarball(
-                tarball=build.container().as_tarball(),
+            scan_report = await self.scan_tarball(
+                tarball=build.tarball(),
                 fail_on=scan_fail_on,
                 format_="table",
             )
@@ -315,7 +248,7 @@ class Wolfi:
                 secret=self.github_token,
             )
 
-        builder: dagger.Container = self.builder()
+        builder: dagger.Container = self.builder_
 
         digest: str = ""
         full_ref: str = ""
@@ -323,7 +256,7 @@ class Wolfi:
         # When tags not provided, compute image address.
         if not tags:
             # Retrieve image title from config
-            image_title: str = await self.get_image_title(config)
+            image_title: str = await config_.title()
             repository: str = f"ttl.sh/opopops/wolfi/{image_title}"
             if self.github_actions:
                 repository = f"ghcr.io/{self.github_actor}/wolfi/{image_title}"
@@ -332,23 +265,27 @@ class Wolfi:
             tags = [f"{repository}:{version}"]
 
         # Publish the image
+        if force:
+            # Cache buster
+            self.container_ = self.container_.with_env_variable(
+                "CACHEBUSTER", str(datetime.now())
+            )
         full_ref: str = await self.container_.publish(
             address=tags[0], platform_variants=build.platform_variants()
         )
-
-        digest = (
-            await builder.with_exec(["crane", "digest", tags[0]]).stdout()
-        ).strip()
+        digest = full_ref.split("@")[1]
 
         # Sign and attest
         if sign:
             builder = builder.with_mounted_directory(
                 path="$APKO_SBOM_DIR",
                 source=build.as_sbom(),
-                owner="nonroot",
+                owner=await builder.user(),
                 expand=True,
             )
             cosign_sign_cmd: list[str] = ["cosign", "sign", "--recursive"]
+            for annotation in cosign_annotations:
+                cosign_sign_cmd.extend(["--annotations", annotation])
             cosign_attest_cmd: list[str] = ["cosign", "attest"]
             if cosign_key:
                 builder = builder.with_secret_variable("COSIGN_PRIVATE_KEY", cosign_key)
@@ -382,7 +319,9 @@ class Wolfi:
                 # Attest index SBOM
                 await (
                     builder.with_mounted_file(
-                        "/tmp/sbom.spdx.json", build.platform_sbom()
+                        "/tmp/sbom.spdx.json",
+                        build.sbom(),
+                        owner=await builder.user(),
                     )
                     .with_exec(
                         cosign_attest_cmd
@@ -406,7 +345,7 @@ class Wolfi:
                 ).stdout()
                 await (
                     builder.with_mounted_file(
-                        "/tmp/sbom.spdx.json", build.platform_sbom(platform)
+                        "/tmp/sbom.spdx.json", build.sbom(platform)
                     )
                     .with_exec(
                         cosign_attest_cmd
@@ -426,7 +365,9 @@ class Wolfi:
                 # Attest vulnerability report
                 await (
                     builder.with_mounted_file(
-                        "/tmp/grype-report.json", scan_report, owner="nonroot"
+                        "/tmp/grype-report.json",
+                        scan_report,
+                        owner=await builder.user(),
                     )
                     .with_exec(
                         cosign_attest_cmd
@@ -458,10 +399,10 @@ class Wolfi:
         self,
         config: Annotated[dagger.File, Doc("APKO config file")],
     ) -> dagger.Container:
-        """Returns the image container and open an interactive terminal"""
+        """Returns the image container"""
         platform: dagger.Platform = await dag.default_platform()
         build: Build = await self.build(config, platforms=[platform])
-        return build.container().terminal()
+        return build.container()
 
     @function
     async def scan(
@@ -478,8 +419,8 @@ class Wolfi:
         """Scan for vulnerabilities"""
         platform: dagger.Platform = await dag.default_platform()
         build: Build = await self.build(config, platforms=[platform])
-        return self.scan_tarball(
-            tarball=build.as_tarball(),
+        return await self.scan_tarball(
+            tarball=build.tarball(),
             fail_on=fail_on,
             format_=format_,
         )
@@ -493,12 +434,18 @@ class Wolfi:
         ] = None,
     ) -> Build:
         """Builds the image and returns the tarball"""
-        builder: dagger.Container = self.builder().with_mounted_file(
-            "$APKO_CONFIG_FILE", source=config, owner="nonroot", expand=True
+        # Retrieve the full configuration
+        config_: Config = await self.config(config=config)
+
+        builder: dagger.Container = self.builder_.with_mounted_file(
+            "$APKO_CONFIG_FILE",
+            source=config,
+            owner=await self.builder_.user(),
+            expand=True,
         )
 
         # Retrieve image tag from config
-        image_title: str = await self.get_image_title(config)
+        image_title: str = await config_.title()
 
         cmd: list[str] = [
             "apko",
@@ -517,7 +464,7 @@ class Wolfi:
                 cmd.extend(["--arch", platform.split("/")[1]])
         else:
             # Retrieves platforms from config
-            platforms = await self.get_platforms(config)
+            platforms = await config_.platforms()
 
         builder = builder.with_exec(
             cmd,
@@ -527,4 +474,4 @@ class Wolfi:
         tarball: dagger.File = builder.file("$APKO_IMAGE_TARBALL", expand=True)
         sbom: dagger.Directory = builder.directory("$APKO_SBOM_DIR", expand=True)
 
-        return Build(tarball=tarball, sbom=sbom, platforms=platforms)
+        return Build(tarball_=tarball, sbom_=sbom, platforms=platforms)
