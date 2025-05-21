@@ -25,8 +25,8 @@ class Wolfi:
     async def create(
         cls,
         source: Annotated[dagger.Directory, DefaultPath("/"), Doc("Source directory")],
-        github_actions: Annotated[bool, Doc("Enable GitHub Actions")] = False,
-        github_actor: Annotated[str, Doc("GitHub Actor")] = "",
+        github_actions: Annotated[bool | None, Doc("Enable GitHub Actions")] = False,
+        github_actor: Annotated[str | None, Doc("GitHub Actor")] = "",
         github_token: Annotated[dagger.Secret | None, Doc("GitHub Token")] = None,
         github_oidc_provider_token: Annotated[
             dagger.Secret | None, Doc("GitHub OIDC provider Token")
@@ -115,7 +115,7 @@ class Wolfi:
 
     @function
     async def config(self, config: dagger.File) -> Config:
-        """Returns the configuration derived from loading a YAML file"""
+        """Returns the Apko config derived from loading a YAML file"""
         config: dagger.File = (
             self.builder_.with_mounted_file(
                 "$APKO_CONFIG_FILE",
@@ -139,7 +139,7 @@ class Wolfi:
         secret: Annotated[dagger.Secret, Doc("Registry password")],
         address: Annotated[str, Doc("Registry host")] = "ghcr.io",
     ) -> Self:
-        """Authenticates with registry (for chaining)"""
+        """Authenticates with registry"""
         self.container_ = self.container_.with_registry_auth(
             address=address, username=username, secret=secret
         )
@@ -169,7 +169,7 @@ class Wolfi:
             ),
         ] = False,
     ) -> Self:
-        """Set a new environment variable in the Apko container"""
+        """Set a new environment variable"""
         self.builder_ = self.builder_.with_env_variable(
             name=name, value=value, expand=expand
         )
@@ -183,6 +183,22 @@ class Wolfi:
     ) -> Self:
         """Set a new environment variable, using a secret value"""
         self.builder_ = self.builder_.with_secret_variable(name=name, secret=secret)
+        return self
+
+    @function
+    async def with_docker_socket(
+        self,
+        source: Annotated[
+            dagger.Socket,
+            Doc(
+                "Identifier of the Docker socket to forward (e.g /var/run/docker.sock)"
+            ),
+        ],
+    ) -> Self:
+        """Mounts a Docker Unix socket"""
+        self.builder_ = self.builder_.with_unix_socket(
+            path="/tmp/docker.sock", source=source, owner=await self.builder_.user()
+        )
         return self
 
     @function
@@ -221,7 +237,7 @@ class Wolfi:
             bool | None, Doc("Force image publishing (invalidate cache)")
         ] = False,
     ) -> str:
-        """Publish the image"""
+        """Publish an image from a YAML config file"""
         # Retrieve the full configuration
         config_: Config = await self.config(config=config)
 
@@ -399,7 +415,7 @@ class Wolfi:
         self,
         config: Annotated[dagger.File, Doc("APKO config file")],
     ) -> dagger.Container:
-        """Returns the image container"""
+        """Returns the image container built from a YAML config file"""
         platform: dagger.Platform = await dag.default_platform()
         build: Build = await self.build(config, platforms=[platform])
         return build.container()
@@ -416,7 +432,7 @@ class Wolfi:
         ] = "",
         format_: Annotated[str, Doc("Output format"), Name("format")] = "table",
     ) -> dagger.File:
-        """Scan for vulnerabilities"""
+        """Scan an image built from a YAML config file for vulnerabilities"""
         platform: dagger.Platform = await dag.default_platform()
         build: Build = await self.build(config, platforms=[platform])
         return await self.scan_tarball(
@@ -433,7 +449,7 @@ class Wolfi:
             list[dagger.Platform] | None, Doc("Platforms"), Name("platform")
         ] = None,
     ) -> Build:
-        """Builds the image and returns the tarball"""
+        """Builds an image from a YAML config file and returns it as a tarball"""
         # Retrieve the full configuration
         config_: Config = await self.config(config=config)
 

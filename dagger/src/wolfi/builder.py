@@ -54,12 +54,15 @@ class Builder:
             .with_env_variable(
                 "GRYPE_REPORT_FILE", "${BUILD_DIR}/grype.report", expand=True
             )
+            .with_env_variable("DOCKER_CONFIG", "/tmp/docker")
+            .with_env_variable("DOCKER_HOST", "unix:///tmp/docker.sock")
             .with_user("root")
             .with_exec(
                 [
                     "apk",
                     "add",
                     "--no-cache",
+                    "docker-cli",
                     apko_pkg,
                     crane_pkg,
                     cosign_pkg,
