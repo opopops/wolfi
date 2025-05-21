@@ -1,8 +1,0 @@
-include: images/prometheus-node-exporter/prod.yaml
-
-contents:
-  packages:
-    - bash
-    - busybox
-    - curl
-    - wget
