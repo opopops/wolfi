@@ -3,12 +3,16 @@ name: prometheus-node-exporter
 on:
   schedule:
     - cron: "00 01 * * 1-5"
+  pull_request:
+    paths:
+      - .github/workflows/prometheus-node-exporter.yaml
+      - 'images/prometheus-node-exporter/**.yaml'
   push:
     branches:
       - 'main'
     paths:
       - .github/workflows/prometheus-node-exporter.yaml
-      - 'images/prometheus-node-exporter/*.yaml'
+      - 'images/prometheus-node-exporter/**.yaml'
   workflow_dispatch:
 
 permissions:

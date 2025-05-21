@@ -3,12 +3,16 @@ name: socat
 on:
   schedule:
     - cron: "00 01 * * 1"
+  pull_request:
+    paths:
+      - .github/workflows/socat.yaml
+      - 'images/socat/**.yaml'
   push:
     branches:
       - 'main'
     paths:
       - .github/workflows/socat.yaml
-      - 'images/socat/*.yaml'
+      - 'images/socat/**.yaml'
   workflow_dispatch:
 
 permissions:

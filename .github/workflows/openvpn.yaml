@@ -3,12 +3,16 @@ name: openvpn
 on:
   schedule:
     - cron: "00 01 * * 1-5"
+  pull_request:
+    paths:
+      - .github/workflows/openvpn.yaml
+      - 'images/openvpn/**.yaml'
   push:
     branches:
       - 'main'
     paths:
       - .github/workflows/openvpn.yaml
-      - 'images/openvpn/*.yaml'
+      - 'images/openvpn/**.yaml'
   workflow_dispatch:
 
 permissions:

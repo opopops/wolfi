@@ -3,26 +3,11 @@ name: Reusable release workflow
 on:
   workflow_call:
     inputs:
-      registry:
-        description: 'Registry'
-        type: string
-        required: false
-        default: ghcr.io
-      registry-username:
-        description: 'Registry username'
-        type: string
-        required: false
-        default: ${{ github.actor }}
-      registry-password:
-        description: 'Registry password'
-        type: string
-        required: false
-        default: ${{ github.token }}
       image:
         description: 'Image name'
         type: string
         required: false
-        default: opopops/wolfi/${{ github.workflow }}
+        default: ${{github.repository}}/${{ github.workflow }}
       tag:
         description: 'Image tag'
         type: string
@@ -83,13 +68,24 @@ jobs:
         - name: Checkout
           uses: actions/checkout@v4
 
-        - name: Login to Registry
+        - name: Set Vars
+          id: vars
+          shell: bash
+          run: |
+            if [[ "${{ github.ref_name }}" == "main" ]]; then
+              echo "registry=ghcr.io" >> $GITHUB_OUTPUT
+            else
+              echo "registry=ttl.sh" >> $GITHUB_OUTPUT
+            fi
+
+        - if: steps.vars.outputs.registry == 'ghcr.io'
+          name: Login to Registry
           uses: docker/login-action@v3
           id: login-to-registry
           with:
-            registry: ${{ inputs.registry }}
-            username: ${{ inputs.registry-username }}
-            password: ${{ inputs.registry-password || github.token }}
+            registry: ghcr.io
+            username: ${{ github.actor }}
+            password: ${{ github.token }}
 
         - if: inputs.dagger == 'true'
           name: Publish And Sign with dagger
@@ -110,7 +106,7 @@ jobs:
               --github-oidc-provider-url=env://ACTIONS_ID_TOKEN_REQUEST_URL \
               publish \
                 --config=${{ inputs.config-dir }}/${{ inputs.target }}.yaml \
-                --tag=${{ inputs.registry }}/${{ inputs.image }}:${{ inputs.tag }} \
+                --tag=${{ steps.vars.outputs.registry }}/${{ inputs.image }}:${{ inputs.tag }} \
                 --scan=false \
                 --sign=true \
                 --oidc-provider='github-actions' \
@@ -128,7 +124,7 @@ jobs:
           uses: distroless/actions/apko-publish@main
           with:
             config: ${{ inputs.config-dir }}/${{ inputs.target }}.yaml
-            tag: ${{ inputs.registry }}/${{ inputs.image }}:${{ inputs.tag }}
+            tag: ${{ steps.vars.outputs.registry }}/${{ inputs.image }}:${{ inputs.tag }}
             package-append: ${{ inputs.packages }}
             archs: ${{ inputs.archs }}
             sbom-path: ${{ github.workspace }}/sbom
@@ -138,14 +134,14 @@ jobs:
           id: digest
           shell: bash
           run: |
-            echo "digest=$(crane digest ${{ inputs.registry }}/${{ inputs.image }}:${{ inputs.tag }})" >> $GITHUB_OUTPUT
+            echo "digest=$(crane digest ${{ steps.vars.outputs.registry }}/${{ inputs.image }}:${{ inputs.tag }})" >> $GITHUB_OUTPUT
             if [[ "${{ inputs.archs }}" == *"amd64"* ]]; then
-                echo "digest-amd64=$(crane digest --platform=linux/amd64 ${{ inputs.registry }}/${{ inputs.image }}:${{ inputs.tag }})" >> $GITHUB_OUTPUT
+                echo "digest-amd64=$(crane digest --platform=linux/amd64 ${{ steps.vars.outputs.registry }}/${{ inputs.image }}:${{ inputs.tag }})" >> $GITHUB_OUTPUT
             else
                 echo "digest-amd64=''" >> $GITHUB_OUTPUT
             fi
             if [[ "${{ inputs.archs }}" == *"arm64"* ]]; then
-                echo "digest-arm64=$(crane digest --platform=linux/arm64 ${{ inputs.registry }}/${{ inputs.image }}:${{ inputs.tag }})" >> $GITHUB_OUTPUT
+                echo "digest-arm64=$(crane digest --platform=linux/arm64 ${{ steps.vars.outputs.registry }}/${{ inputs.image }}:${{ inputs.tag }})" >> $GITHUB_OUTPUT
             else
                 echo "digest-arm64=''" >> $GITHUB_OUTPUT
             fi
@@ -159,7 +155,7 @@ jobs:
             cosign sign \
               --recursive \
               --oidc-provider=github-actions \
-              ${{ inputs.registry }}/${{ inputs.image }}@${{ steps.digest.outputs.digest }}
+              ${{ steps.vars.outputs.registry }}/${{ inputs.image }}@${{ steps.digest.outputs.digest }}
 
         - if: inputs.dagger != 'true'
           name: Attest index SBOM
@@ -171,7 +167,7 @@ jobs:
               --type=spdxjson \
               --predicate=${{ github.workspace }}/sbom/sbom-index.spdx.json \
               --oidc-provider=github-actions \
-              ${{ inputs.registry }}/${{ inputs.image }}@${{ steps.digest.outputs.digest }}
+              ${{ steps.vars.outputs.registry }}/${{ inputs.image }}@${{ steps.digest.outputs.digest }}
 
         - if: inputs.dagger != 'true' && steps.digest.outputs.digest-amd64 != ''
           name: Attest amd64 SBOM
@@ -183,7 +179,7 @@ jobs:
               --type=spdxjson \
               --predicate=${{ github.workspace }}/sbom/sbom-x86_64.spdx.json \
               --oidc-provider=github-actions \
-              ${{ inputs.registry }}/${{ inputs.image }}@${{ steps.digest.outputs.digest-amd64 }}
+              ${{ steps.vars.outputs.registry }}/${{ inputs.image }}@${{ steps.digest.outputs.digest-amd64 }}
 
         - if: inputs.dagger != 'true' && steps.digest.outputs.digest-arm64 != ''
           name: Attest arm64 SBOM
@@ -195,12 +191,13 @@ jobs:
               --type=spdxjson \
               --predicate=${{ github.workspace }}/sbom/sbom-aarch64.spdx.json \
               --oidc-provider=github-actions \
-              ${{ inputs.registry }}/${{ inputs.image }}@${{ steps.digest.outputs.digest-arm64 }}
+              ${{ steps.vars.outputs.registry }}/${{ inputs.image }}@${{ steps.digest.outputs.digest-arm64 }}
 
-        - name: Attest provenance
+        - if: steps.vars.outputs.registry == 'ghcr.io'
+          name: Attest provenance
           uses: actions/attest-build-provenance@v2
           with:
-            subject-name: ${{ inputs.registry }}/${{ inputs.image }}
+            subject-name: ${{ steps.vars.outputs.registry }}/${{ inputs.image }}
             subject-digest: ${{ steps.publish.outputs.output }}
             push-to-registry: true
 
@@ -209,7 +206,7 @@ jobs:
           id: scan
           uses: anchore/scan-action@v6
           with:
-            image: ${{ inputs.registry }}/${{ inputs.image }}:${{ inputs.tag }}
+            image: ${{ steps.vars.outputs.registry }}/${{ inputs.image }}:${{ inputs.tag }}
             cache-db: true
             fail-build: 'false'
             severity-cutoff: 'high'
