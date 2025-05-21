@@ -442,6 +442,26 @@ class Wolfi:
         )
 
     @function
+    async def scan_image(
+        self,
+        address: Annotated[str, Doc("Address of the image to scan")],
+        fail_on: Annotated[
+            str,
+            Doc(
+                "Fails if a vulnerability is found with a severity >= the given severity"
+            ),
+        ] = "",
+        format_: Annotated[str, Doc("Output format"), Name("format")] = "table",
+    ) -> dagger.File:
+        """Scan an image for vulnerabilities"""
+        tarball: dagger.File = dag.container().from_(address=address).as_tarball()
+        return await self.scan_tarball(
+            tarball=tarball,
+            fail_on=fail_on,
+            format_=format_,
+        )
+
+    @function
     async def build(
         self,
         config: Annotated[dagger.File, Doc("APKO config file")],
