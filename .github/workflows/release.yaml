@@ -85,7 +85,7 @@ jobs:
           with:
             registry: ghcr.io
             username: ${{ github.actor }}
-            password: ${{ github.token }}
+            password: ${{ secrets.GH_TOKEN }}
 
         - if: inputs.dagger == 'true'
           name: Publish And Sign with dagger
@@ -94,7 +94,7 @@ jobs:
           env:
             ACTIONS_ID_TOKEN_REQUEST_TOKEN: ${{ env.ACTIONS_ID_TOKEN_REQUEST_TOKEN}}
             ACTIONS_ID_TOKEN_REQUEST_URL: ${{ env.ACTIONS_ID_TOKEN_REQUEST_URL }}
-            GITHUB_TOKEN: ${{ github.token }}
+            GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
           with:
             version: "0.18.8"
             cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
