@@ -3,132 +3,154 @@ name: Reusable release workflow
 on:
   workflow_call:
     inputs:
-      image:
-        description: 'Image name'
+      repository:
         type: string
         required: false
-        default: ${{github.repository}}/${{ github.workflow }}
+        default: ${{ github.repository }}/${{ github.workflow }}
       tag:
-        description: 'Image tag'
         type: string
         required: false
         default: 'latest'
       config-dir:
-        description: 'Config directory'
         type: string
         required: false
         default: images/${{ github.workflow }}
       target:
-        description: 'Image target'
         type: string
         required: false
         default: 'prod'
       packages:
-        description: 'Additional packages'
         type: string
         required: false
         default: ''
       archs:
-        description: 'Architectures'
         type: string
         required: false
         default: 'amd64,arm64'
       scan:
-        description: 'Enable scan'
         type: string
         required: false
         default: 'true'
-
-permissions:
-  contents: read
-  packages: write
-  attestations: write
-  id-token: write
-  security-events: write
-  actions: read
+      scan-fail-on:
+        type: string
+        required: false
+        default: ''
 
 jobs:
-  ### --- Dagger
   publish:
-      runs-on: ubuntu-latest
-      outputs:
-        digest: ${{ steps.output.outputs.digest }}
-      steps:
-        - name: Checkout
-          uses: actions/checkout@v4
+    permissions:
+      actions: read
+      attestations: write
+      contents: read
+      id-token: write
+      packages: write
+      security-events: write
+    runs-on: ubuntu-latest
+    outputs:
+      digest: ${{ steps.output.outputs.digest }}
+      registry: ${{ steps.vars.outputs.registry }}
+      image: ${{ steps.vars.outputs.image }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-        - name: Set Vars
-          id: vars
-          shell: bash
-          run: |
-            if [[ "${{ github.ref_name }}" == "main" ]]; then
-              echo "registry=ghcr.io" >> $GITHUB_OUTPUT
-            else
-              echo "registry=ttl.sh" >> $GITHUB_OUTPUT
-            fi
+      - name: Set Vars
+        id: vars
+        shell: bash
+        run: |
+          export REGISTRY="ghcr.io"
+          if [[ "${{ github.ref_name }}" != "main" ]]; then
+            export REGISTRY="ttl.sh"
+          fi
+          echo "registry=${REGISTRY}" >> $GITHUB_OUTPUT
+          echo "image=${REGISTRY}/${{ inputs.repository }}:${{ inputs.tag }}" >> $GITHUB_OUTPUT
 
-        - if: steps.vars.outputs.registry == 'ghcr.io'
-          name: Login to Registry
-          uses: docker/login-action@v3
-          id: login-to-registry
-          with:
-            registry: ghcr.io
-            username: ${{ github.actor }}
-            password: ${{ secrets.GH_TOKEN }}
+      - if: steps.vars.outputs.registry == 'ghcr.io'
+        name: Login to Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
 
-        - name: Publish And Sign with dagger
-          id: publish
-          uses: dagger/dagger-for-github@8.0.0
-          env:
-            ACTIONS_ID_TOKEN_REQUEST_TOKEN: ${{ env.ACTIONS_ID_TOKEN_REQUEST_TOKEN}}
-            ACTIONS_ID_TOKEN_REQUEST_URL: ${{ env.ACTIONS_ID_TOKEN_REQUEST_URL }}
-            GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-          with:
-            version: 'latest'
-            cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
-            engine-stop: 'false'
-            call: |
-              --github-actions=true \
-              --github-actor=${{ github.actor }} \
-              --github-token=env://GITHUB_TOKEN \
-              --github-oidc-provider-token=env://ACTIONS_ID_TOKEN_REQUEST_TOKEN \
-              --github-oidc-provider-url=env://ACTIONS_ID_TOKEN_REQUEST_URL \
-              publish \
-                --config=${{ inputs.config-dir }}/${{ inputs.target }}.yaml \
-                --tag=${{ steps.vars.outputs.registry }}/${{ inputs.image }}:${{ inputs.tag }} \
-                --scan=${{ inputs.scan }} \
-                --sign=true \
-                --oidc-provider='github-actions' \
+      - name: Publish and Sign with Dagger
+        id: publish
+        uses: dagger/dagger-for-github@8.0.0
+        env:
+          ACTIONS_ID_TOKEN_REQUEST_TOKEN: ${{ env.ACTIONS_ID_TOKEN_REQUEST_TOKEN }}
+          ACTIONS_ID_TOKEN_REQUEST_URL: ${{ env.ACTIONS_ID_TOKEN_REQUEST_URL }}
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+        with:
+          version: 'latest'
+          cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
+          engine-stop: 'false'
+          call: |
+            --github-actions=true \
+            --github-actor=${{ github.actor }} \
+            --github-token=env://GITHUB_TOKEN \
+            --github-oidc-provider-token=env://ACTIONS_ID_TOKEN_REQUEST_TOKEN \
+            --github-oidc-provider-url=env://ACTIONS_ID_TOKEN_REQUEST_URL \
+            publish \
+              --config=${{ inputs.config-dir }}/${{ inputs.target }}.yaml \
+              --tag=${{ steps.vars.outputs.image }} \
+              --scan=${{ inputs.scan }} \
+              --scan-fail-on=${{ inputs.scan-fail-on }} \
+              --sign=true \
+              --oidc-provider='github-actions' \
 
-        - if: steps.vars.outputs.registry == 'ghcr.io'
-          name: Attest provenance
-          uses: actions/attest-build-provenance@v2
-          with:
-            subject-name: ${{ steps.vars.outputs.registry }}/${{ inputs.image }}
-            subject-digest: ${{ steps.publish.outputs.output }}
-            push-to-registry: true
+      - if: steps.vars.outputs.registry == 'ghcr.io'
+        name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ steps.vars.outputs.registry }}/${{ inputs.repository }}
+          subject-digest: ${{ steps.publish.outputs.output }}
+          push-to-registry: true
 
-        - if: inputs.scan == 'true'
-          name: Scan image
-          id: scan
-          uses: dagger/dagger-for-github@8.0.0
-          with:
-            version: 'latest'
-            cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
-            call: |
-              scan-image \
-                --address=${{ steps.vars.outputs.registry }}/${{ inputs.image }}:${{ inputs.tag }} \
-                --format=sarif \
-              export --path ${{ runner.temp }}/grype.sarif \
+      - name: Set output
+        id: output
+        run: echo "digest=${{ steps.publish.outputs.output }}" >> $GITHUB_OUTPUT
 
-        - if: inputs.scan == 'true'
-          uses: github/codeql-action/upload-sarif@v3
-          with:
-            sarif_file: ${{ runner.temp }}/grype.sarif
-            category: ${{ github.workflow }}
+  slsa:
+    permissions:
+      actions: read
+      id-token: write
+      packages: write
+    needs: publish
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v2.1.0
+    with:
+      image: ${{ needs.publish.outputs.image }}
+      digest: ${{ needs.publish.outputs.digest }}
+    secrets:
+      registry-username: ${{ github.actor }}
+      registry-password: ${{ secrets.GITHUB_TOKEN }}
 
-        - name: Set output
-          id: output
-          shell: bash
-          run: |
-            echo "digest=${{ steps.publish.outputs.output }}" >> $GITHUB_OUTPUT
+  scan:
+    if: inputs.scan == 'true'
+    permissions:
+      actions: read
+      contents: read
+      packages: read
+      security-events: write
+    needs: publish
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Scan image
+        id: scan
+        uses: dagger/dagger-for-github@8.0.0
+        with:
+          version: 'latest'
+          cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
+          call: |
+            scan-image \
+              --address=${{ needs.publish.outputs.image }} \
+              --format=sarif \
+            export --path ${{ runner.temp }}/grype.sarif \
+
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: ${{ runner.temp }}/grype.sarif
+          category: ${{ github.workflow }}
