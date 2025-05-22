@@ -109,6 +109,86 @@ class Wolfi:
         ).file("$GRYPE_REPORT_FILE", expand=True)
 
     @function
+    async def sign(
+        self,
+        image: Annotated[str, Doc("Image address")],
+        annotations: Annotated[
+            list[str] | None, Doc("Extra key=value pairs to sign")
+        ] = (),
+        key: Annotated[
+            dagger.Secret | None, Doc("Private key to use for image signing")
+        ] = None,
+        password: Annotated[
+            dagger.Secret | None, Doc("Password used to decrypt the Cosign Private key")
+        ] = None,
+        oidc_provider: Annotated[
+            str, Doc("Specify the provider to get the OIDC token from")
+        ] = "",
+    ) -> str:
+        """Sign the supplied container image"""
+        builder: dagger.Container = self.builder_
+        cmd: list[str] = ["cosign", "sign", image, "--recursive"]
+        for annotation in annotations:
+            cmd.extend(["--annotations", annotation])
+        if key:
+            builder = builder.with_secret_variable("COSIGN_PRIVATE_KEY", key)
+            if password:
+                builder = builder.with_secret_variable("COSIGN_PASSWORD", password)
+            cmd.extend(["--key", "env://COSIGN_PRIVATE_KEY"])
+        if oidc_provider:
+            cmd.extend(["--oidc-provider", oidc_provider])
+        return await builder.with_exec(
+            cmd,
+            expand=True,
+        ).stdout()
+
+    @function
+    async def attest(
+        self,
+        image: Annotated[str, Doc("Image address")],
+        predicate: Annotated[dagger.File, Doc("Predicate file")],
+        type_: Annotated[str | None, Doc("Predicate type")] = "spdxjson",
+        key: Annotated[
+            dagger.Secret | None, Doc("Private key to use for image signing")
+        ] = None,
+        password: Annotated[
+            dagger.Secret | None, Doc("Password used to decrypt the Cosign Private key")
+        ] = None,
+        oidc_provider: Annotated[
+            str, Doc("Specify the provider to get the OIDC token from")
+        ] = "",
+    ) -> str:
+        """Attest the supplied container image"""
+        builder: dagger.Container = self.builder_
+        cmd: list[str] = ["cosign", "attest"]
+        if key:
+            builder = builder.with_secret_variable("COSIGN_PRIVATE_KEY", key)
+            if password:
+                builder = builder.with_secret_variable("COSIGN_PASSWORD", password)
+            cmd.extend(["--key", "env://COSIGN_PRIVATE_KEY"])
+        if oidc_provider:
+            cmd.extend(["--oidc-provider", oidc_provider])
+        return await (
+            builder.with_mounted_file(
+                "/tmp/predicate",
+                predicate,
+                owner=await self.builder_.user(),
+            )
+            .with_exec(
+                cmd
+                + [
+                    "--type",
+                    type_,
+                    "--predicate",
+                    "/tmp/predicate",
+                    image,
+                ],
+                expand=True,
+            )
+            .stdout()
+        )
+
+    @function
     def builder(self) -> dagger.Container:
         """Returns the builder container"""
         return self.builder_
@@ -227,9 +307,6 @@ class Wolfi:
         cosign_password: Annotated[
             dagger.Secret | None, Doc("Password used to decrypt the Cosign Private key")
         ] = None,
-        identity_token: Annotated[
-            dagger.Secret | None, Doc("identity token to use for image signing")
-        ] = None,
         oidc_provider: Annotated[
             str, Doc("Specify the provider to get the OIDC token from")
         ] = "",
@@ -247,15 +324,16 @@ class Wolfi:
         build: Build = await self.build(config, platforms=platforms)
         build_digest: str = await build.digest()
 
-        # Scan the image for vulnerabilities
-        scan_report: dagger.File = None
+        # Scan the multi-arch image for vulnerabilities
+        scan_reports: dict[dagger.Platform, dagger.File] = {}
         if scan:
-            scan_report = await self.scan_tarball(
-                tarball=build.tarball(),
-                fail_on=scan_fail_on,
-                format_="table",
-            )
-            await scan_report.contents()
+            for platform in platforms:
+                scan_reports[platform] = await self.scan_tarball(
+                    tarball=build.tarball(platform=platform),
+                    fail_on=scan_fail_on,
+                    format_="json",
+                )
+                await scan_reports[platform].contents()
 
         # Authenticates to the registry when running in GitHub Actions
         if self.github_actor and self.github_token:
@@ -299,58 +377,30 @@ class Wolfi:
                 owner=await builder.user(),
                 expand=True,
             )
-            cosign_sign_cmd: list[str] = ["cosign", "sign", "--recursive"]
-            for annotation in cosign_annotations:
-                cosign_sign_cmd.extend(["--annotations", annotation])
-            cosign_attest_cmd: list[str] = ["cosign", "attest"]
-            if cosign_key:
-                builder = builder.with_secret_variable("COSIGN_PRIVATE_KEY", cosign_key)
-                if cosign_password:
-                    builder = builder.with_secret_variable(
-                        "COSIGN_PASSWORD", cosign_password
-                    )
-                cosign_sign_cmd.extend(["--key", "env://COSIGN_PRIVATE_KEY"])
-                cosign_attest_cmd.extend(["--key", "env://COSIGN_PRIVATE_KEY"])
-            if identity_token:
-                builder = builder.with_secret_variable(
-                    "COSIGN_IDENTITY_TOKEN", identity_token
-                )
-                cosign_sign_cmd.extend(["--identity-token", "$COSIGN_IDENTITY_TOKEN"])
-                cosign_attest_cmd.extend(["--identity-token", "$COSIGN_IDENTITY_TOKEN"])
-            if oidc_provider:
-                cosign_sign_cmd.extend(["--oidc-provider", oidc_provider])
-                cosign_attest_cmd.extend(["--oidc-provider", oidc_provider])
 
+            # Clean all existing attestations with cosign
+            await builder.with_exec(
+                ["cosign", "clean", full_ref, "--type", "all", "--force"]
+            ).stdout()
             # Sign the image with cosign
-            await (
-                builder.with_exec(
-                    ["cosign", "clean", full_ref, "--type", "all", "--force"]
-                )
-                .with_exec(cosign_sign_cmd + [full_ref], expand=True)
-                .stdout()
+            await self.sign(
+                image=full_ref,
+                annotations=cosign_annotations,
+                key=cosign_key,
+                password=cosign_password,
+                oidc_provider=oidc_provider,
             )
 
             # Attest SBOMs
             if len(platforms) > 1:
                 # Attest index SBOM
-                await (
-                    builder.with_mounted_file(
-                        "/tmp/sbom.spdx.json",
-                        build.sbom(),
-                        owner=await builder.user(),
-                    )
-                    .with_exec(
-                        cosign_attest_cmd
-                        + [
-                            "--type",
-                            "spdxjson",
-                            "--predicate",
-                            "/tmp/sbom.spdx.json",
-                            full_ref,
-                        ],
-                        expand=True,
-                    )
-                    .stdout()
+                await self.attest(
+                    image=full_ref,
+                    predicate=build.sbom(),
+                    type_="spdxjson",
+                    key=cosign_key,
+                    password=cosign_password,
+                    oidc_provider=oidc_provider,
                 )
 
             # Attest platforms SBOMs
@@ -359,44 +409,25 @@ class Wolfi:
                     ["crane", "digest", full_ref, "--platform", platform, "--full-ref"],
                     expand=True,
                 ).stdout()
-                await (
-                    builder.with_mounted_file(
-                        "/tmp/sbom.spdx.json", build.sbom(platform)
-                    )
-                    .with_exec(
-                        cosign_attest_cmd
-                        + [
-                            "--type",
-                            "spdxjson",
-                            "--predicate",
-                            "/tmp/sbom.spdx.json",
-                            platform_digest.strip(),
-                        ],
-                        expand=True,
-                    )
-                    .stdout()
+                await self.attest(
+                    image=platform_digest.strip(),
+                    predicate=build.sbom(platform),
+                    type_="spdxjson",
+                    key=cosign_key,
+                    password=cosign_password,
+                    oidc_provider=oidc_provider,
                 )
 
-            if scan_report:
-                # Attest vulnerability report
-                await (
-                    builder.with_mounted_file(
-                        "/tmp/grype-report.json",
-                        scan_report,
-                        owner=await builder.user(),
+                if scan_reports:
+                    # Attest vulnerability reports
+                    await self.attest(
+                        image=platform_digest.strip(),
+                        predicate=scan_reports[platform],
+                        type_="openvex",
+                        key=cosign_key,
+                        password=cosign_password,
+                        oidc_provider=oidc_provider,
                     )
-                    .with_exec(
-                        cosign_attest_cmd
-                        + [
-                            "--type",
-                            "vuln",
-                            "--predicate",
-                            "/tmp/grype-report.json",
-                            full_ref,
-                        ],
-                    )
-                    .stdout()
-                )
 
         # Publish other tags
         for tag in tags[1:]:

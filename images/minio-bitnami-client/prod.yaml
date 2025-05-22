@@ -26,4 +26,4 @@ environment:
 annotations:
   org.opencontainers.image.title: 'minio-bitnami-client'
   org.opencontainers.image.description: 'MinIO-Bitnami client image based on Wolfi OS'
-  org.opencontainers.image.source": 'https://github.com/opopops/wolfi/tree/main/images/minio-bitnami-client'
+  org.opencontainers.image.source: 'https://github.com/opopops/wolfi/tree/main/images/minio-bitnami-client'
