@@ -4,5 +4,27 @@
   "sdk": {
     "source": "python"
   },
+  "dependencies": [
+    {
+      "name": "apko",
+      "source": "github.com/opopops/daggerverse/apko@main",
+      "pin": "88d610fd134ad61b1272af3f1234a454c49d4db7"
+    },
+    {
+      "name": "cosign",
+      "source": "github.com/opopops/daggerverse/cosign@main",
+      "pin": "88d610fd134ad61b1272af3f1234a454c49d4db7"
+    },
+    {
+      "name": "crane",
+      "source": "github.com/opopops/daggerverse/crane@main",
+      "pin": "88d610fd134ad61b1272af3f1234a454c49d4db7"
+    },
+    {
+      "name": "grype",
+      "source": "github.com/opopops/daggerverse/grype@main",
+      "pin": "88d610fd134ad61b1272af3f1234a454c49d4db7"
+    }
+  ],
   "source": "dagger"
 }

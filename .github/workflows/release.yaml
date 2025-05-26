@@ -7,18 +7,18 @@ on:
         type: string
         required: false
         default: ${{ github.repository }}/${{ github.workflow }}
-      tag:
+      image:
         type: string
         required: false
-        default: 'latest'
-      config-dir:
-        type: string
-        required: false
-        default: images/${{ github.workflow }}
+        default: ${{ github.workflow }}
       target:
         type: string
         required: false
         default: 'prod'
+      tag:
+        type: string
+        required: false
+        default: 'latest'
       packages:
         type: string
         required: false
@@ -87,11 +87,14 @@ jobs:
           call: |
             --github-actions=true \
             --github-actor=${{ github.actor }} \
+            --github-repository=${{ github.repository }} \
+            --github-repository-owner=${{ github.repository_owner }} \
             --github-token=env://GITHUB_TOKEN \
             --github-oidc-provider-token=env://ACTIONS_ID_TOKEN_REQUEST_TOKEN \
             --github-oidc-provider-url=env://ACTIONS_ID_TOKEN_REQUEST_URL \
             publish \
-              --config=${{ inputs.config-dir }}/${{ inputs.target }}.yaml \
+              --image=${{ inputs.image }} \
+              --variant=${{ inputs.target }} \
               --tag=${{ steps.vars.outputs.image }} \
               --scan=${{ inputs.scan }} \
               --scan-fail-on=${{ inputs.scan-fail-on }} \
@@ -143,10 +146,12 @@ jobs:
         with:
           version: 'latest'
           cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
+          module: github.com/opopops/daggerverse/grype@main
           call: |
             scan-image \
-              --address=${{ needs.publish.outputs.image }} \
-              --format=sarif \
+              --source=${{ needs.publish.outputs.image }} \
+              --output-format=sarif \
+              --fail=false \
             export --path ${{ runner.temp }}/grype.sarif \
 
       - name: Upload SARIF
