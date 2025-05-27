@@ -92,14 +92,15 @@ jobs:
             --github-token=env://GITHUB_TOKEN \
             --github-oidc-provider-token=env://ACTIONS_ID_TOKEN_REQUEST_TOKEN \
             --github-oidc-provider-url=env://ACTIONS_ID_TOKEN_REQUEST_URL \
+            with-cosign-oidc \
+              --provider='github-actions' \
             publish \
               --image=${{ inputs.image }} \
               --variant=${{ inputs.target }} \
               --tag=${{ steps.vars.outputs.image }} \
               --scan=${{ inputs.scan }} \
-              --scan-fail-on=${{ inputs.scan-fail-on }} \
+              --severity=${{ inputs.scan-fail-on }} \
               --sign=true \
-              --oidc-provider='github-actions' \
 
       - if: steps.vars.outputs.registry == 'ghcr.io'
         name: Attest build provenance

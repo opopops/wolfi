@@ -174,7 +174,7 @@ class Wolfi:
         return self
 
     @function
-    async def with_docker_socket(
+    def with_docker_socket(
         self,
         source: Annotated[
             dagger.Socket,
@@ -184,7 +184,52 @@ class Wolfi:
         ],
     ) -> Self:
         """Mounts a Docker Unix socket"""
-        self.apko_ = self.apko_.with_unix_socket(source=source)
+        self.apko_ = self.apko_.with_docker_socket(source=source)
+        return self
+
+    @function
+    def with_cosign_private_key(
+        self,
+        key: Annotated[
+            dagger.Secret | None, Doc("Private key to use for image signing")
+        ] = None,
+        password: Annotated[
+            dagger.Secret | None, Doc("Password used to decrypt the Cosign Private key")
+        ] = None,
+    ) -> Self:
+        """Set the private key to use for image signing with Cosign"""
+        self.cosign_ = self.cosign_.with_private_key(
+            key=key,
+            password=password,
+        )
+        return self
+
+    @function
+    def with_cosign_oidc(
+        self,
+        provider: Annotated[
+            str | None, Doc("Specify the provider to get the OIDC token from")
+        ] = "",
+        issuer: Annotated[
+            str | None, Doc("OIDC provider to be used to issue ID token")
+        ] = "",
+    ) -> Self:
+        """Set the OIDC parameters to use for image signing with Cosign"""
+        self.cosign_ = self.cosign_.with_oidc(
+            provider=provider,
+            issuer=issuer,
+        )
+        return self
+
+    @function
+    def with_cosign_annotations(
+        self,
+        annotations: Annotated[
+            list[str], Doc("Extra key=value pairs to sign")
+        ],
+    ) -> Self:
+        """Set the OIDC parameters to use for image signing with Cosign"""
+        self.cosign_ = self.cosign_.with_annotations(annotations)
         return self
 
     @function
@@ -198,25 +243,13 @@ class Wolfi:
             list[dagger.Platform] | None, Doc("Platforms"), Name("platform")
         ] = None,
         scan: Annotated[bool, Doc("Scan the image for vulnerabilities")] = True,
-        scan_fail_on: Annotated[
+        severity: Annotated[
             str,
             Doc(
                 "Fails if a vulnerability is found with a severity >= the given severity"
             ),
         ] = "",
         sign: Annotated[bool, Doc("Sign the image with cosign")] = False,
-        cosign_annotations: Annotated[
-            list[str] | None, Doc("Extra key=value pairs to sign")
-        ] = (),
-        cosign_key: Annotated[
-            dagger.Secret | None, Doc("Private key to use for image signing")
-        ] = None,
-        cosign_password: Annotated[
-            dagger.Secret | None, Doc("Password used to decrypt the Cosign Private key")
-        ] = None,
-        oidc_provider: Annotated[
-            str, Doc("Specify the provider to get the OIDC token from")
-        ] = "",
         force: Annotated[
             bool | None, Doc("Force image publishing (invalidate cache)")
         ] = False,
@@ -241,7 +274,7 @@ class Wolfi:
                     .import_(build_tarball)
                     .as_tarball(),
                     source_type="oci-archive",
-                    severity=scan_fail_on,
+                    severity=severity,
                     output_format="json",
                 )
                 await scan_reports[platform].contents()
@@ -288,10 +321,6 @@ class Wolfi:
             # Sign the image with cosign
             await self.cosign_.sign(
                 image=full_ref,
-                annotations=cosign_annotations,
-                private_key=cosign_key,
-                password=cosign_password,
-                oidc_provider=oidc_provider,
                 recursive=True,
             )
 
@@ -302,9 +331,6 @@ class Wolfi:
                     image=full_ref,
                     predicate=self._sbom(),
                     type_="spdxjson",
-                    private_key=cosign_key,
-                    password=cosign_password,
-                    oidc_provider=oidc_provider,
                 )
 
             # Attest platforms SBOMs
@@ -316,9 +342,6 @@ class Wolfi:
                     image=platform_digest.strip(),
                     predicate=self._sbom(platform),
                     type_="spdxjson",
-                    private_key=cosign_key,
-                    password=cosign_password,
-                    oidc_provider=oidc_provider,
                 )
 
                 if scan_reports:
@@ -327,9 +350,6 @@ class Wolfi:
                         image=platform_digest.strip(),
                         predicate=scan_reports[platform],
                         type_="openvex",
-                        private_key=cosign_key,
-                        password=cosign_password,
-                        oidc_provider=oidc_provider,
                     )
 
         # Publish other tags
