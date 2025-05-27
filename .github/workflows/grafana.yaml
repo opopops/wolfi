@@ -6,13 +6,15 @@ on:
   pull_request:
     paths:
       - .github/workflows/grafana.yaml
-      - 'images/grafana/**.yaml'
+      - 'images/grafana/*.yaml'
+      - 'images/grafana/**/*.yaml'
   push:
     branches:
       - 'main'
     paths:
       - .github/workflows/grafana.yaml
-      - 'images/grafana/**.yaml'
+      - 'images/grafana/*.yaml'
+      - 'images/grafana/**/*.yaml'
   workflow_dispatch:
 
 permissions:

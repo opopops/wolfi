@@ -6,13 +6,15 @@ on:
   pull_request:
     paths:
       - .github/workflows/prometheus.yaml
-      - 'images/prometheus/**.yaml'
+      - 'images/prometheus/*.yaml'
+      - 'images/prometheus/**/*.yaml'
   push:
     branches:
       - 'main'
     paths:
       - .github/workflows/prometheus.yaml
-      - 'images/prometheus/**.yaml'
+      - 'images/prometheus/*.yaml'
+      - 'images/prometheus/**/*.yaml'
   workflow_dispatch:
 
 permissions:
