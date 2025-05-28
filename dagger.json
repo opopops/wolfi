@@ -1,6 +1,6 @@
 {
   "name": "wolfi",
-  "engineVersion": "v0.18.8",
+  "engineVersion": "v0.18.9",
   "sdk": {
     "source": "python"
   },
@@ -8,22 +8,22 @@
     {
       "name": "apko",
       "source": "github.com/opopops/daggerverse/apko@main",
-      "pin": "ea24e0e01d06f291a1620796cde69d1bf60f0a68"
+      "pin": "b5eab06de77fb4d632be0df2e68d780a74d547be"
     },
     {
       "name": "cosign",
       "source": "github.com/opopops/daggerverse/cosign@main",
-      "pin": "ea24e0e01d06f291a1620796cde69d1bf60f0a68"
+      "pin": "b5eab06de77fb4d632be0df2e68d780a74d547be"
     },
     {
       "name": "crane",
       "source": "github.com/opopops/daggerverse/crane@main",
-      "pin": "ea24e0e01d06f291a1620796cde69d1bf60f0a68"
+      "pin": "b5eab06de77fb4d632be0df2e68d780a74d547be"
     },
     {
       "name": "grype",
       "source": "github.com/opopops/daggerverse/grype@main",
-      "pin": "ea24e0e01d06f291a1620796cde69d1bf60f0a68"
+      "pin": "b5eab06de77fb4d632be0df2e68d780a74d547be"
     }
   ],
   "source": "dagger"

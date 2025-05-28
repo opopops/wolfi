@@ -20,7 +20,7 @@ class Wolfi:
     grype_: dagger.Grype
 
     container_: dagger.Container
-    platform_variants_: list[dagger.Platform] | None = None
+    platform_variants_: list[dagger.Platform] | None
     sbom_: dagger.Directory | None = None
 
     github_actions: bool | None
@@ -86,6 +86,7 @@ class Wolfi:
             crane_=crane,
             grype_=grype,
             container_=dag.container(),
+            platform_variants_=[],
         )
 
     def _sbom(
@@ -224,9 +225,7 @@ class Wolfi:
     @function
     def with_cosign_annotations(
         self,
-        annotations: Annotated[
-            list[str], Doc("Extra key=value pairs to sign")
-        ],
+        annotations: Annotated[list[str], Doc("Extra key=value pairs to sign")],
     ) -> Self:
         """Set the OIDC parameters to use for image signing with Cosign"""
         self.cosign_ = self.cosign_.with_annotations(annotations)
@@ -263,7 +262,7 @@ class Wolfi:
             image=image, variant=variant, platforms=platforms
         )
         build_tarball: dagger.File = build.file("image.tar")
-        build_digest: str = await build.digest()
+        build_digest: str = await build_tarball.digest()
 
         # Scan the multi-arch image for vulnerabilities
         scan_reports: dict[dagger.Platform, dagger.File] = {}
@@ -439,10 +438,10 @@ class Wolfi:
         )
         for platform in await build.platforms():
             if platform == await dag.default_platform():
-                self.container_ = self.container_.import_(build.tarball())
+                self.container_ = self.container_.import_(build.as_tarball())
             else:
                 self.platform_variants_.append(
-                    dag.container(platform=platform).import_(build.tarball())
+                    dag.container(platform=platform).import_(build.as_tarball())
                 )
             self.sbom_ = build.sbom()
         return build.as_directory()

@@ -98,6 +98,7 @@ jobs:
               --image=${{ inputs.image }} \
               --variant=${{ inputs.target }} \
               --tag=${{ steps.vars.outputs.image }} \
+              --platform=${{ inputs.archs }} \
               --scan=${{ inputs.scan }} \
               --severity=${{ inputs.scan-fail-on }} \
               --sign=true \
