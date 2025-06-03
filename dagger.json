@@ -8,22 +8,22 @@
     {
       "name": "apko",
       "source": "github.com/opopops/daggerverse/apko@main",
-      "pin": "b5eab06de77fb4d632be0df2e68d780a74d547be"
+      "pin": "dd96ce69a00bdf34c114db981717d48eed2fb816"
     },
     {
       "name": "cosign",
       "source": "github.com/opopops/daggerverse/cosign@main",
-      "pin": "b5eab06de77fb4d632be0df2e68d780a74d547be"
+      "pin": "dd96ce69a00bdf34c114db981717d48eed2fb816"
     },
     {
       "name": "crane",
       "source": "github.com/opopops/daggerverse/crane@main",
-      "pin": "b5eab06de77fb4d632be0df2e68d780a74d547be"
+      "pin": "dd96ce69a00bdf34c114db981717d48eed2fb816"
     },
     {
       "name": "grype",
       "source": "github.com/opopops/daggerverse/grype@main",
-      "pin": "b5eab06de77fb4d632be0df2e68d780a74d547be"
+      "pin": "dd96ce69a00bdf34c114db981717d48eed2fb816"
     }
   ],
   "source": "dagger"
