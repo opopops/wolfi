@@ -6,10 +6,12 @@ Minimal Wolfi-based nginx HTTP, reverse proxy, mail proxy, and a generic TCP/UDP
 | ------------ | ---------------------------------------- |
 | latest       | ghcr.io/opopops/wolfi/nginx:latest       |
 | latest-shell | ghcr.io/opopops/wolfi/nginx:latest-shell |
+| 1.29         | ghcr.io/opopops/wolfi/nginx:1.29         |
+| 1.29-shell   | ghcr.io/opopops/wolfi/nginx:1.29-shell   |
+| 1.28         | ghcr.io/opopops/wolfi/nginx:1.28         |
+| 1.28-shell   | ghcr.io/opopops/wolfi/nginx:1.28-shell   |
 | 1.27         | ghcr.io/opopops/wolfi/nginx:1.27         |
 | 1.27-shell   | ghcr.io/opopops/wolfi/nginx:1.27-shell   |
-| 1.26         | ghcr.io/opopops/wolfi/nginx:1.26         |
-| 1.26-shell   | ghcr.io/opopops/wolfi/nginx:1.26-shell   |
 
 ## ✅ Verify the Provenance
 
