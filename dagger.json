@@ -7,8 +7,8 @@
   "dependencies": [
     {
       "name": "apko",
-      "source": "github.com/opopops/daggerverse/apko@apko/v1.16.7",
-      "pin": "a3529dd53c25f3941b4e3a2bd889ae0a77926778"
+      "source": "github.com/opopops/daggerverse/apko@apko/v1.16.8",
+      "pin": "1d6e7f2a48bf43470c8421cc3f5d4fd7b12fdcee"
     },
     {
       "name": "cosign",
