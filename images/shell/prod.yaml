@@ -3,6 +3,7 @@ include: images/apko.yaml
 contents:
   packages:
     - bash
+    - bind-tools
     - busybox
     - ca-certificates-bundle
     - curl
