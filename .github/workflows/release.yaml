@@ -52,7 +52,7 @@ jobs:
       image: ${{ steps.vars.outputs.image }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set Vars
         id: vars
@@ -75,7 +75,7 @@ jobs:
 
       - name: Publish and Sign with Dagger
         id: publish
-        uses: dagger/dagger-for-github@8.0.0
+        uses: dagger/dagger-for-github@v8.1.0
         env:
           ACTIONS_ID_TOKEN_REQUEST_TOKEN: ${{ env.ACTIONS_ID_TOKEN_REQUEST_TOKEN }}
           ACTIONS_ID_TOKEN_REQUEST_URL: ${{ env.ACTIONS_ID_TOKEN_REQUEST_URL }}
@@ -105,7 +105,7 @@ jobs:
 
       - if: steps.vars.outputs.registry == 'ghcr.io'
         name: Attest build provenance
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v3
         with:
           subject-name: ${{ steps.vars.outputs.registry }}/${{ inputs.repository }}
           subject-digest: ${{ steps.publish.outputs.output }}
@@ -140,11 +140,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Scan image
         id: scan
-        uses: dagger/dagger-for-github@8.0.0
+        uses: dagger/dagger-for-github@v8.1.0
         with:
           version: 'latest'
           cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
