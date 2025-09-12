@@ -13,6 +13,7 @@ contents:
     - glibc-locale-posix
     - jq
     - netcat-openbsd
+    - rsync
     - util-linux-misc
     - wget
     - wolfi-baselayout
