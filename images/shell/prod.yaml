@@ -8,10 +8,12 @@ contents:
     - ca-certificates-bundle
     - curl
     - dockerize
+    - e2fsprogs
     - gettext
     - glibc-locale-posix
     - jq
     - netcat-openbsd
+    - util-linux-misc
     - wget
     - wolfi-baselayout
     - yq
