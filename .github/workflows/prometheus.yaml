@@ -34,8 +34,11 @@ jobs:
         include:
           - version: latest
             packages: ''
-          - version: "3.2"
-            packages: 'prometheus~3.2'
+          - version: "3.5"
+            packages: 'prometheus~3.5'
+
+          - version: "3.4"
+            packages: 'prometheus~3.4'
     name: ${{ matrix.version }}${{ matrix.variant == 'shell' && '-shell' || '' }}
     uses: './.github/workflows/release.yaml'
     with:
