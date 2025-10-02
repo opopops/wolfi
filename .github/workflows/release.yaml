@@ -83,7 +83,6 @@ jobs:
         with:
           version: 'latest'
           cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
-          engine-stop: 'false'
           call: |
             --github-actions=true \
             --github-actor=${{ github.actor }} \
