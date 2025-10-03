@@ -6,6 +6,7 @@ contents:
     - bind-tools
     - busybox
     - ca-certificates-bundle
+    - coreutils
     - curl
     - dockerize
     - e2fsprogs

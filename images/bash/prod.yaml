@@ -5,6 +5,7 @@ contents:
     - bash
     - busybox
     - ca-certificates-bundle
+    - coreutils
     - curl
     - glibc-locale-posix
     - wget
