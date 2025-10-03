@@ -18,6 +18,7 @@
 
 | Image Name                                                     | Pull                                                         |
 | -------------------------------------------------------------- | ------------------------------------------------------------ |
+| [aws-cli](./images/aws-cli/)                                   | `docker pull ghcr.io/opopops/wolfi/aws-cli`                  |
 | [bash](./images/bash/)                                         | `docker pull ghcr.io/opopops/wolfi/bash`                     |
 | [fluent-bit](./images/fluent-bit/)                             | `docker pull ghcr.io/opopops/wolfi/fluent-bit`               |
 | [helm](./images/helm/)                                         | `docker pull ghcr.io/opopops/wolfi/helm`                     |

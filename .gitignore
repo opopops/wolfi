@@ -1,3 +1,5 @@
+.vscode/
+
 *.rsa*
 *.key
 *.pub
