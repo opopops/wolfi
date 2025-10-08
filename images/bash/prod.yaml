@@ -8,6 +8,9 @@ contents:
     - coreutils
     - curl
     - glibc-locale-posix
+    - gpg
+    - gnupg-dirmngr
+    - gnupg-utils
     - wget
     - wolfi-baselayout
 

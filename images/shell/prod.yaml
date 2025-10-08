@@ -9,9 +9,11 @@ contents:
     - coreutils
     - curl
     - dockerize
-    - e2fsprogs
     - gettext
     - glibc-locale-posix
+    - gpg
+    - gnupg-dirmngr
+    - gnupg-utils
     - jq
     - netcat-openbsd
     - rsync
