@@ -156,7 +156,7 @@ jobs:
             export --path ${{ runner.temp }}/grype.sarif \
 
       - name: Upload SARIF
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: ${{ runner.temp }}/grype.sarif
           category: ${{ github.workflow }}
