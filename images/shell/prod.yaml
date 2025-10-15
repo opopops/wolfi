@@ -17,6 +17,7 @@ contents:
     - jq
     - netcat-openbsd
     - rsync
+    - tcpdump
     - wget
     - wolfi-baselayout
     - yq
