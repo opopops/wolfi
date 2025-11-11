@@ -8,10 +8,10 @@ Minimal Wolfi-based traefik HTTP, reverse proxy, mail proxy, and a generic TCP/U
 | ------------ | ------------------------------------------ |
 | latest       | ghcr.io/opopops/wolfi/traefik:latest       |
 | latest-shell | ghcr.io/opopops/wolfi/traefik:latest-shell |
+| 3.6          | ghcr.io/opopops/wolfi/traefik:3.6          |
+| 3.6-shell    | ghcr.io/opopops/wolfi/traefik:3.6-shell    |
 | 3.5          | ghcr.io/opopops/wolfi/traefik:3.5          |
 | 3.5-shell    | ghcr.io/opopops/wolfi/traefik:3.5-shell    |
-| 3.4          | ghcr.io/opopops/wolfi/traefik:3.4          |
-| 3.4-shell    | ghcr.io/opopops/wolfi/traefik:3.4-shell    |
 
 ## ✅ Verify the Provenance
 
