@@ -1,19 +1,19 @@
 {
   "name": "wolfi",
-  "engineVersion": "v0.19.0",
+  "engineVersion": "v0.19.6",
   "sdk": {
     "source": "python"
   },
   "dependencies": [
     {
       "name": "apko",
-      "source": "github.com/opopops/daggerverse/apko@apko/v1.16.12",
-      "pin": "9689f08702709bd06769e794f428b5896b49d538"
+      "source": "github.com/opopops/daggerverse/apko@apko/v1.17.0",
+      "pin": "32060c997034312740e590f48cd9ec65cdb6c375"
     },
     {
       "name": "cosign",
-      "source": "github.com/opopops/daggerverse/cosign@cosign/v1.8.5",
-      "pin": "96c64e874ac093d95a16d5112a1be77f27e860a3"
+      "source": "github.com/opopops/daggerverse/cosign@cosign/v1.9.0",
+      "pin": "267066e6301626a19b37829b2a555e69f6075537"
     },
     {
       "name": "crane",
@@ -26,5 +26,6 @@
       "pin": "b55ede5b774666ad14ba21fe6d7921b2886aefa9"
     }
   ],
-  "source": "dagger"
+  "source": "dagger",
+  "disableDefaultFunctionCaching": true
 }
