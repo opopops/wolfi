@@ -8,8 +8,10 @@ Fluent Bit is a lightweight and high performance log processor.
 | ------------ | --------------------------------------------- |
 | latest       | ghcr.io/opopops/wolfi/fluent-bit:latest       |
 | latest-shell | ghcr.io/opopops/wolfi/fluent-bit:latest-shell |
-| 4.0          | ghcr.io/opopops/wolfi/fluent-bit:4.0          |
-| 4.0-shell    | ghcr.io/opopops/wolfi/fluent-bit:4.0-shell    |
+| 4.2          | ghcr.io/opopops/wolfi/fluent-bit:4.2          |
+| 4.2-shell    | ghcr.io/opopops/wolfi/fluent-bit:4.2-shell    |
+| 4.1          | ghcr.io/opopops/wolfi/fluent-bit:4.1          |
+| 4.1-shell    | ghcr.io/opopops/wolfi/fluent-bit:4.1-shell    |
 
 ## ✅ Verify the Provenance
 

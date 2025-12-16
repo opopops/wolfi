@@ -8,12 +8,12 @@ Minimal Python image based on Wolfi.
 | ------------ | ----------------------------------------- |
 | latest       | ghcr.io/opopops/wolfi/python:latest       |
 | latest-shell | ghcr.io/opopops/wolfi/python:latest-shell |
+| 3.14         | ghcr.io/opopops/wolfi/python:3.14         |
+| 3.14-shell   | ghcr.io/opopops/wolfi/python:3.14-shell   |
 | 3.13         | ghcr.io/opopops/wolfi/python:3.13         |
 | 3.13-shell   | ghcr.io/opopops/wolfi/python:3.13-shell   |
 | 3.12         | ghcr.io/opopops/wolfi/python:3.12         |
 | 3.12-shell   | ghcr.io/opopops/wolfi/python:3.12-shell   |
-| 3.11         | ghcr.io/opopops/wolfi/python:3.11         |
-| 3.11-shell   | ghcr.io/opopops/wolfi/python:3.11-shell   |
 
 ## ✅ Verify the Provenance
 

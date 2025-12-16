@@ -8,10 +8,10 @@ This image contains the loki application for log aggregation. loki can be used t
 | ------------ | --------------------------------------- |
 | latest       | ghcr.io/opopops/wolfi/loki:latest       |
 | latest-shell | ghcr.io/opopops/wolfi/loki:latest-shell |
+| 3.6          | ghcr.io/opopops/wolfi/loki:3.6          |
+| 3.6-shell    | ghcr.io/opopops/wolfi/loki:3.6-shell    |
 | 3.5          | ghcr.io/opopops/wolfi/loki:3.5          |
 | 3.5-shell    | ghcr.io/opopops/wolfi/loki:3.5-shell    |
-| 3.4          | ghcr.io/opopops/wolfi/loki:3.4          |
-| 3.4-shell    | ghcr.io/opopops/wolfi/loki:3.4-shell    |
 
 ## ✅ Verify the Provenance
 

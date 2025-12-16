@@ -1,7 +1,0 @@
-include: images/python/dev.yaml
-
-contents:
-  packages:
-    - python-3.11
-    - python-3.11-dev
-    - py3.11-pip

@@ -7,7 +7,8 @@ Container image with only Bash and libc. Suitable for running any small scripts 
 | 📌 Version  | ⬇️ Pull URL                            |
 | ---------- | ------------------------------------- |
 | latest     | ghcr.io/opopops/wolfi/aws-cli:latest     |
-| 2.31       | ghcr.io/opopops/wolfi/aws-cli:latest-dev |
+| 2.32       | ghcr.io/opopops/wolfi/aws-cli:2.32 |
+| 2.31       | ghcr.io/opopops/wolfi/aws-cli:2.31 |
 
 ## ✅ Verify the Provenance
 

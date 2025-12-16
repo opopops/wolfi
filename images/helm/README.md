@@ -7,8 +7,8 @@ Minimal Wolfi-based helm image.
 | 📌 Version | ⬇️ Pull URL                        |
 | --------- | --------------------------------- |
 | latest    | ghcr.io/opopops/wolfi/helm:latest |
-| 3.18      | ghcr.io/opopops/wolfi/helm:3.18   |
-| 3.17      | ghcr.io/opopops/wolfi/helm:3.17   |
+| 4.0       | ghcr.io/opopops/wolfi/helm:4.0    |
+| 3.19      | ghcr.io/opopops/wolfi/helm:3.19   |
 
 ## ✅ Verify the Provenance
 

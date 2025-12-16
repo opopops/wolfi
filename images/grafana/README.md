@@ -8,8 +8,10 @@
 | ------------ | ------------------------------------------ |
 | latest       | ghcr.io/opopops/wolfi/grafana:latest       |
 | latest-shell | ghcr.io/opopops/wolfi/grafana:latest-shell |
-| 12.1         | ghcr.io/opopops/wolfi/grafana:12.1         |
-| 12.1-shell   | ghcr.io/opopops/wolfi/grafana:12.1-shell   |
+| 12.3         | ghcr.io/opopops/wolfi/grafana:12.3         |
+| 12.3-shell   | ghcr.io/opopops/wolfi/grafana:12.3-shell   |
+| 12.2         | ghcr.io/opopops/wolfi/grafana:12.2         |
+| 12.2-shell   | ghcr.io/opopops/wolfi/grafana:12.2-shell   |
 
 ## ✅ Verify the Provenance
 

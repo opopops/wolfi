@@ -8,10 +8,8 @@
 | ------------ | --------------------------------------------- |
 | latest       | ghcr.io/opopops/wolfi/prometheus:latest       |
 | latest-shell | ghcr.io/opopops/wolfi/prometheus:latest-shell |
-| 3.5          | ghcr.io/opopops/wolfi/prometheus:3.5          |
-| 3.5-shell    | ghcr.io/opopops/wolfi/prometheus:3.5-shell    |
-| 3.4          | ghcr.io/opopops/wolfi/prometheus:3.4          |
-| 3.4-shell    | ghcr.io/opopops/wolfi/prometheus:3.4-shell    |
+| 3.8          | ghcr.io/opopops/wolfi/prometheus:3.8         |
+| 3.8-shell    | ghcr.io/opopops/wolfi/prometheus:3.8-shell    |
 
 ## ✅ Verify the Provenance
 

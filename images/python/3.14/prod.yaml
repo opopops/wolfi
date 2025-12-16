@@ -2,4 +2,4 @@ include: images/python/prod.yaml
 
 contents:
   packages:
-    - python-3.11
+    - python-3.14
