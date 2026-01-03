@@ -1,14 +1,14 @@
 {
   "name": "wolfi",
-  "engineVersion": "v0.19.7",
+  "engineVersion": "v0.19.8",
   "sdk": {
     "source": "python"
   },
   "dependencies": [
     {
       "name": "apko",
-      "source": "github.com/opopops/daggerverse/apko@apko/v1.17.1",
-      "pin": "aec85d537ee5659e42ce24b86ea558fc3fd0d2b8"
+      "source": "github.com/opopops/daggerverse/apko@apko/v1.17.2",
+      "pin": "82b7ee74ef05b06c6bbad3905e2876dac6c53c3e"
     },
     {
       "name": "cosign",
@@ -22,8 +22,8 @@
     },
     {
       "name": "grype",
-      "source": "github.com/opopops/daggerverse/grype@grype/v1.9.7",
-      "pin": "d4d602f48601dca0740bbe82cb3689fc9e0f1b82"
+      "source": "github.com/opopops/daggerverse/grype@grype/v1.9.8",
+      "pin": "7509e578618fab478412512f27780cccdcdf29b1"
     }
   ],
   "source": "dagger",
