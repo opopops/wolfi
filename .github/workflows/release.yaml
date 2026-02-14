@@ -75,7 +75,7 @@ jobs:
 
       - name: Publish and Sign with Dagger
         id: publish
-        uses: dagger/dagger-for-github@v8.3.0
+        uses: dagger/dagger-for-github@v8.2.0
         env:
           ACTIONS_ID_TOKEN_REQUEST_TOKEN: ${{ env.ACTIONS_ID_TOKEN_REQUEST_TOKEN }}
           ACTIONS_ID_TOKEN_REQUEST_URL: ${{ env.ACTIONS_ID_TOKEN_REQUEST_URL }}
@@ -143,7 +143,7 @@ jobs:
 
       - name: Scan image
         id: scan
-        uses: dagger/dagger-for-github@v8.3.0
+        uses: dagger/dagger-for-github@v8.2.0
         with:
           version: 'latest'
           cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
