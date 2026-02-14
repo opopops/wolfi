@@ -1,14 +1,14 @@
 {
   "name": "wolfi",
-  "engineVersion": "v0.19.10",
+  "engineVersion": "v0.19.11",
   "sdk": {
     "source": "python"
   },
   "dependencies": [
     {
       "name": "apko",
-      "source": "github.com/opopops/daggerverse/apko@apko/v1.17.3",
-      "pin": "33db0267bf9a11931fc6eea4cbdf4f6051552bd6"
+      "source": "github.com/opopops/daggerverse/apko@apko/v1.18.0",
+      "pin": "9f2021698e6e2279f2a952879ac16ec5e89209dd"
     },
     {
       "name": "cosign",
