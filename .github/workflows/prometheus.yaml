@@ -29,7 +29,7 @@ jobs:
   publish:
     strategy:
       matrix:
-        version: [latest, "3.8"]
+        version: [latest, "3.10"]
         variant: [prod, shell]
         include:
           - version: latest
