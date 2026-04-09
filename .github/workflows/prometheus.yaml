@@ -31,11 +31,6 @@ jobs:
       matrix:
         version: [latest, "3.10"]
         variant: [prod, shell]
-        include:
-          - version: latest
-            packages: ''
-          - version: "3.8"
-            packages: 'prometheus~3.8'
     name: ${{ matrix.version }}${{ matrix.variant == 'shell' && '-shell' || '' }}
     uses: './.github/workflows/release.yaml'
     with:
